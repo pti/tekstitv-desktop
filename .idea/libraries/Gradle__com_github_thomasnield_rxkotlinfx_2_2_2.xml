@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: com.github.thomasnield:rxkotlinfx:2.2.2">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.thomasnield/rxkotlinfx/2.2.2/6a23ea85613141571f73bf97c1ae2d65a88864f2/rxkotlinfx-2.2.2.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.thomasnield/rxkotlinfx/2.2.2/6bb33b9e903ad2cd4e0041e33a03b6a9e706f9fd/rxkotlinfx-2.2.2-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

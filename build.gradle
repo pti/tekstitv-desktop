@@ -1,0 +1,42 @@
+buildscript {
+    ext.kotlin_version = '1.2.60'
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+group 'fi.reuna.tekstitv'
+version '0.1.0'
+
+apply plugin: 'java'
+apply plugin: 'kotlin'
+apply plugin: 'application'
+
+mainClassName = 'fi.reuna.tekstitv.MainKt'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+    compile "org.jetbrains.kotlin:kotlin-reflect"
+    compile 'com.github.thomasnield:rxkotlinfx:2.2.2'
+    compile 'com.squareup.retrofit2:retrofit:2.5.0'
+    compile 'com.squareup.retrofit2:adapter-rxjava2:2.5.0'
+    compile 'com.squareup.moshi:moshi-kotlin:1.8.0'
+    compile 'com.squareup.moshi:moshi-adapters:1.8.0'
+    compile 'com.squareup.retrofit2:converter-moshi:2.5.0'
+    compile 'org.hjson:hjson:3.0.0'
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
