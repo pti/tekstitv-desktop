@@ -1,6 +1,5 @@
 package fi.reuna.tekstitv
 
-import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
 import io.reactivex.Single
@@ -66,16 +65,6 @@ data class TTVContent(val status: Int,
                  val version: String,
                  val pages: List<TTVPage>)
 
-data class TTVPage(val number: Int, val subpages: List<TTVSubpage>)  {
+data class TTVPage(val number: Int, val subpages: List<TTVSubpage>)
 
-    fun getSubpage(index: Int): Page? {
-        return if (index >= 0 && index < subpages.size) Page(Location(number, index), subpages[index].content) else null
-    }
-}
-
-data class TTVSubpage(val number: Int, val timestamp: Date, val content: String) {
-
-    @Transient
-    val pieces: Array<Piece> = pageContentToPieces(content).toTypedArray()
-
-}
+data class TTVSubpage(val number: Int, val timestamp: Date, val content: String)

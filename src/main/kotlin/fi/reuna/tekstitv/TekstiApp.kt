@@ -95,12 +95,12 @@ fun main(args: Array<String>) {
 
                 when (it) {
                     is PageEvent.Loaded -> {
-                        Log.debug("got page ${it.page.location.page}")
-                        println("----------------------- ${it.page.location.page}/${it.page.location.sub} --------------------------")
-                        println(it.page.content.replace(replacer, " "))
+                        Log.debug("got subpage ${it.subpage.location.page}")
+                        println("----------------------- ${it.subpage.location.page}/${it.subpage.location.sub} --------------------------")
+                        println(it.subpage.content.replace(replacer, " "))
                     }
-                    is PageEvent.Failed -> Log.error("failed to load page ${it.location}: ${it.error}")
-                    is PageEvent.NotFound -> Log.error("page not found: ${it.location}")
+                    is PageEvent.Failed -> Log.error("failed to load subpage ${it.location}: ${it.error}")
+                    is PageEvent.NotFound -> Log.error("subpage not found: ${it.location}")
                 }
 
             }

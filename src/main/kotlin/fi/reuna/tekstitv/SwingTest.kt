@@ -37,6 +37,8 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val charHeight: Int
     val lineHeight: Int
     val fontMetrics: FontMetrics
+    val background = Color.BLACK!!
+    val foreground = Color.WHITE!!
 
     init {
         font = fontForSize(g, "Droid Sans Mono", width, height)
@@ -47,7 +49,7 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     }
 }
 
-class PagePanel : JPanel() {
+class PagePanelz : JPanel() {
 
     private var spec: PaintSpec? = null
 
@@ -158,7 +160,7 @@ fun main(args: Array<String>) {
     frame.background = Color.BLACK
     frame.setBounds(20, 20, 800, 500)
 
-    val t2 = PagePanel()
+    val t2 = PagePanelz()
     frame.contentPane.add(t2)
     frame.isVisible = true
 

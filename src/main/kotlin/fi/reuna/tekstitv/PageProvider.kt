@@ -8,7 +8,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.*
 
-private data class CacheEntry(val page: TTVPage, val added: Instant = Instant.now())
+private data class CacheEntry(val page: Page, val added: Instant = Instant.now())
 
 enum class Direction(val delta: Int) {
     NEXT(+1),
@@ -22,18 +22,21 @@ class PageProvider {
     private val observable: Observable<PageEvent>
     private val pageEventSubject = BehaviorSubject.create<PageEvent>()
     private val relativeSubject = PublishSubject.create<Direction>()
+    private val scheduler = Schedulers.single()
+
+    // TODO thread safety
 
     val currentLocation: Location
         get() = history.lastOrNull() ?: Location(100, 0)
 
-    val currentPage: Page?
+    val currentPage: Subpage?
         get() = currentLocation.fromCache()
 
     init { 
         observable = pageEventSubject
 
         relativeSubject
-                .observeOn(Schedulers.newThread())
+                .observeOn(scheduler)
                 .subscribe { direction ->
                     val ttv = TTVService.instance
                     val relativeTo = currentLocation
@@ -53,13 +56,13 @@ class PageProvider {
                         Direction.NEXT -> ttv.getNextPage(relativeTo.page)
                         Direction.PREV -> ttv.getPreviousPage(relativeTo.page)
                     }
-                            // If the currentLocation points to a non-existing page, then nextPage/prevPage requests always fail. If that happens, simply try to request to the nextPage page by number.
-                            // This is useful in case the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
-                            .onErrorResumeNext { ttv.getPage(relativeTo.page + direction.delta) }
-                            .map { handle(it, relativeTo) }
-                            .onErrorReturn { PageEvent.Failed(it, relativeTo) }
-                            .doOnSuccess { pageEventSubject.onNext(it) }
-                            .subscribe()
+                        // If the currentLocation points to a non-existing page, then nextPage/prevPage requests always fail. If that happens, simply try to request to the nextPage page by number.
+                        // This is useful in case the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
+                        .onErrorResumeNext { ttv.getPage(relativeTo.page + direction.delta) }
+                        .map { handle(it, relativeTo) }
+                        .onErrorReturn { PageEvent.Failed(it, relativeTo) }
+                        .doOnSuccess { pageEventSubject.onNext(it) }
+                        .subscribe()
                 }
     }
 
@@ -82,6 +85,7 @@ class PageProvider {
         }
 
         TTVService.instance.getPage(location.page)
+                .observeOn(scheduler)
                 .map { handle(it, location) }
                 .onErrorReturn {
                     historyAdd(location)
@@ -141,31 +145,31 @@ class PageProvider {
     fun setSubpage(direction: Direction) {
         // Do nothing if trying to move beyond bounds.
         // Instead of adding another instance of the current page to the history stack, replace page's current instance with updated subpage. Quicker to move backwards in history this way.
-        currentLocation.subpage(direction.delta).fromCache()?.let {
+        currentLocation.moveSubpage(direction.delta).fromCache()?.let {
             history.pop()
             history.push(it.location)
             pageEventSubject.onNext(PageEvent.Loaded(it))
         }
     }
 
-    private fun handleCacheHit(cached: Page) {
+    private fun handleCacheHit(cached: Subpage) {
         Log.debug("cached ${cached.location.page}")
         historyAdd(cached.location)
         pageEventSubject.onNext(PageEvent.Loaded(cached))
     }
 
     private fun handle(received: TTVContent, ref: Location): PageEvent {
-        received.pages.forEach { cache[it.number] = CacheEntry(it) }
-        val page = received.pages.firstOrNull()
-        val subpage = page?.getSubpage(0)
+        val pages = received.pages.map { Page(it) }
+        pages.forEach { cache[it.number] = CacheEntry(it) }
+        val firstSub = pages.firstOrNull()?.subpages?.firstOrNull()
 
-        if (subpage != null) {
-            historyAdd(subpage.location)
+        if (firstSub != null) {
+            historyAdd(firstSub.location)
         }
 
-        return when (subpage) {
+        return when (firstSub) {
             null -> PageEvent.NotFound(ref)
-            else -> PageEvent.Loaded(subpage)
+            else -> PageEvent.Loaded(firstSub)
         }
     }
 
@@ -176,11 +180,11 @@ class PageProvider {
         }
     }
 
-    private fun Location.fromCache(): Page? {
+    private fun Location.fromCache(): Subpage? {
         return cache[page]?.page?.getSubpage(sub)
     }
 
-    private fun Location.checkCache(): Page? {
+    private fun Location.checkCache(): Subpage? {
         var cacheEntry = cache[page]
 
         if (cacheEntry != null && cacheEntry.added.since().toMinutes() > 10) {
@@ -189,10 +193,6 @@ class PageProvider {
         }
 
         return cacheEntry?.page?.getSubpage(sub)
-    }
-
-    private fun Page.toObservable(): Observable<Page> {
-        return Observable.just(this)
     }
 
     private fun Instant.since(): Duration {

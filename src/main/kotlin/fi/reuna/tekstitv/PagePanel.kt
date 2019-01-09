@@ -1,0 +1,86 @@
+package fi.reuna.tekstitv
+
+import java.awt.Graphics
+import java.awt.Graphics2D
+import javax.swing.JPanel
+import javax.swing.SwingUtilities
+
+
+class SubpagePanel : JPanel() {
+
+    private var spec: PaintSpec? = null
+
+    var subpage: Subpage? = null
+        set(value) {
+            field = value
+
+            if (value != null) {
+                errorMessage = null
+            }
+
+            repaint()
+        }
+
+    var errorMessage: String? = null
+        set(value) {
+            field = value
+
+            if (value != null) {
+                subpage = null
+            }
+
+            repaint()
+        }
+
+    private fun checkSpec(): PaintSpec {
+
+        if (spec == null || width != spec!!.width || height != spec!!.height) {
+            spec = PaintSpec(graphics, width, height)
+        }
+
+        return spec!!
+    }
+
+    private fun paintSubpage(g: Graphics2D, subpage: Subpage) {
+        val spec = checkSpec()
+        var x = 0
+        var y = 0
+        g.font = spec.font
+        g.color = spec.background
+        g.fillRect(0, 0, width, height)
+
+        for (piece in subpage.pieces) {
+            piece.paint(g, spec, x, y)
+
+            if (piece.lineEnd) {
+                y += spec.lineHeight
+            }
+        }
+    }
+
+    private fun paintErrorMessage(g: Graphics2D, errorMessage: String) {
+        val spec = checkSpec()
+        g.color = spec.background
+        g.fillRect(0, 0, width, height)
+
+        val textWidth = SwingUtilities.computeStringWidth(spec.fontMetrics, errorMessage)
+        val textHeight = spec.fontMetrics.height
+        g.color = spec.foreground
+        g.drawString(errorMessage, (width - textWidth) / 2, (height - textHeight) / 2)
+    }
+
+    override fun paint(g: Graphics?) {
+        super.paint(g)
+        val g2d = g as Graphics2D
+        val subpage = subpage
+        val errorMessage = errorMessage
+
+        if (errorMessage != null) {
+            paintErrorMessage(g2d, errorMessage)
+        }
+
+        if (subpage != null) {
+            paintSubpage(g2d, subpage)
+        }
+    }
+}

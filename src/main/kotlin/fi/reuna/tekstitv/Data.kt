@@ -6,15 +6,28 @@ data class Location(val page: Int, val sub: Int) {
         return Location(page + direction.delta, 0)
     }
 
-    fun subpage(delta: Int = 0): Location {
+    fun moveSubpage(delta: Int = 0): Location {
         return Location(page, sub + delta)
     }
 }
 
 sealed class PageEvent {
-    data class Loaded(val page: Page) : PageEvent()
+    data class Loaded(val subpage: Subpage) : PageEvent()
     data class NotFound(val location: Location? = null) : PageEvent()
     data class Failed(val error: Throwable, val location: Location? = null) : PageEvent()
 }
 
-data class Page(val location: Location, val content: String)
+data class Page(val number: Int, val subpages: List<Subpage>) {
+
+    constructor(src: TTVPage) : this(src.number, src.subpages.map { Subpage(Location(src.number, it.number), it.content) })
+
+    fun getSubpage(index: Int): Subpage? {
+        return if (index >= 0 && index < subpages.size) subpages[index] else null
+    }
+}
+
+data class Subpage(val location: Location, val content: String) {
+
+    val pieces: Array<Piece> = pageContentToPieces(content).toTypedArray()
+
+}

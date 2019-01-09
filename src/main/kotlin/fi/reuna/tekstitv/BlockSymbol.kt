@@ -31,11 +31,11 @@ object BlockSymbol {
         // 64 different symbols for both modes. The code is a bitmask specifying what blocks to fill.
         // 0b1: fill block #0, 0b10: fill block #1, ...
         val symbol = Area()
-        var code = code
+        var codeBits = code
 
         for (i in 0..5) {
 
-            if (code and 1 == 1) {
+            if (codeBits and 1 == 1) {
                 val col = i % 2
                 val row = i / 2
 
@@ -53,7 +53,7 @@ object BlockSymbol {
                 symbol.add(Area(block))
             }
 
-            code = code shr 1
+            codeBits = code shr 1
         }
 
         return symbol

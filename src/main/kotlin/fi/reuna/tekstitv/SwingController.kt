@@ -1,39 +1,35 @@
 package fi.reuna.tekstitv
 
-import com.github.thomasnield.rxkotlinfx.events
-import com.github.thomasnield.rxkotlinfx.observeOnFx
-import javafx.application.Platform
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyEvent
-import javafx.scene.text.Text
+import java.awt.event.KeyEvent
 import java.util.concurrent.TimeUnit
+import javax.swing.JFrame
+import javax.swing.SwingUtilities
 
-class Controller(private val text: Text) {
+class SwingController(private val panel: SubpagePanel) {
 
     private val digitBuffer = DigitBuffer()
 
     // TODO ^ stop autorefresh when minimized - kts JXTest
 
     init {
-        val replacer = Regex("\\[\\w{4}\\]")
         val provider = PageProvider()
 
         provider.observe()
-                .observeOnFx()
+                .observeOnEventQueue()
                 .subscribe {
 
                     when (it) {
                         is PageEvent.Loaded -> {
                             Log.debug("got ${it.subpage.location}")
-                            text.text = it.subpage.content.replace(replacer, " ")
+                            panel.subpage = it.subpage
                         }
                         is PageEvent.Failed -> {
-                            Log.error("failed to load subpage ${it.location}: ${it.error}")
-                            text.text = "failed to load subpage ${it.location}: ${it.error}"
+                            Log.error("failed to load page ${it.location}: ${it.error}")
+                            panel.errorMessage = "failed to load page ${it.location}: ${it.error}"
                         }
                         is PageEvent.NotFound -> {
-                            Log.error("subpage not found: ${it.location}")
-                            text.text = "subpage not found: ${it.location}"
+                            Log.error("page not found: ${it.location}")
+                            panel.errorMessage = "page not found: ${it.location}"
                         }
                     }
                 }
@@ -45,27 +41,29 @@ class Controller(private val text: Text) {
         Log.debug("provider observer set up")
         provider.set(100) // TODO initial page defined in config
 
-        text.scene.events(KeyEvent.KEY_PRESSED)
-                .observeOnFx()
+
+        panel.observeKeyEvents()
+                .filter { it.id == KeyEvent.KEY_PRESSED }
+                .observeOnEventQueue()
                 .subscribe { e ->
 
                     if (e.isControlDown) {
 
-                        when (e.code) {
-                            KeyCode.R -> provider.reload()
-                            KeyCode.Q -> Platform.exit()
+                        when (e.keyCode) {
+                            KeyEvent.VK_R -> provider.reload()
+                            KeyEvent.VK_Q -> (SwingUtilities.getRoot(panel) as? JFrame)?.dispose()
                             else -> return@subscribe
                         }
 
                     } else {
 
-                        when (e.code) {
-                            KeyCode.LEFT -> provider.prevSubpage()
-                            KeyCode.RIGHT -> provider.nextSubpage()
-                            KeyCode.UP -> provider.nextPage()
-                            KeyCode.DOWN -> provider.prevPage()
-                            KeyCode.BACK_SPACE -> provider.back()
-                            KeyCode.F5 -> provider.reload()
+                        when (e.keyCode) {
+                            KeyEvent.VK_LEFT -> provider.prevSubpage()
+                            KeyEvent.VK_RIGHT -> provider.nextSubpage()
+                            KeyEvent.VK_UP -> provider.nextPage()
+                            KeyEvent.VK_DOWN -> provider.prevPage()
+                            KeyEvent.VK_BACK_SPACE -> provider.back()
+                            KeyEvent.VK_F5 -> provider.reload()
                             else -> return@subscribe
                         }
                     }
@@ -76,10 +74,11 @@ class Controller(private val text: Text) {
         // TODO display some kind of loading indicator if request takes a long time
         // TODO display and update page number when consuming key events -> observable for digitbuffer / provide property
 
-        text.scene.events(KeyEvent.KEY_TYPED)
-                .observeOnFx()
-                .subscribe {
-                    val char = it.character.first()
+        panel.observeKeyEvents()
+                .observeOnEventQueue()
+                .filter { it.id == KeyEvent.KEY_TYPED }
+                .subscribe { e ->
+                    val char = e.keyChar
 
                     if (digitBuffer.isEmpty && char == '0') {
                         provider.togglePrevious()
