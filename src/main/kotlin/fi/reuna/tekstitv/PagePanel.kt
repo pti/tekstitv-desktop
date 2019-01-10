@@ -2,6 +2,7 @@ package fi.reuna.tekstitv
 
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.RenderingHints
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 
@@ -41,28 +42,23 @@ class SubpagePanel : JPanel() {
         return spec!!
     }
 
-    private fun paintSubpage(g: Graphics2D, subpage: Subpage) {
-        val spec = checkSpec()
-        var x = 0
+    private fun paintSubpage(g: Graphics2D, spec: PaintSpec, subpage: Subpage) {
+        val x0 = 0
+        var x = x0
         var y = 0
         g.font = spec.font
-        g.color = spec.background
-        g.fillRect(0, 0, width, height)
 
         for (piece in subpage.pieces) {
-            piece.paint(g, spec, x, y)
+            x += piece.paint(g, spec, x, y)
 
             if (piece.lineEnd) {
                 y += spec.lineHeight
+                x = x0
             }
         }
     }
 
-    private fun paintErrorMessage(g: Graphics2D, errorMessage: String) {
-        val spec = checkSpec()
-        g.color = spec.background
-        g.fillRect(0, 0, width, height)
-
+    private fun paintErrorMessage(g: Graphics2D, spec: PaintSpec, errorMessage: String) {
         val textWidth = SwingUtilities.computeStringWidth(spec.fontMetrics, errorMessage)
         val textHeight = spec.fontMetrics.height
         g.color = spec.foreground
@@ -75,12 +71,18 @@ class SubpagePanel : JPanel() {
         val subpage = subpage
         val errorMessage = errorMessage
 
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+
+        val spec = checkSpec()
+        g.color = spec.background
+        g.fillRect(0, 0, width, height)
+
         if (errorMessage != null) {
-            paintErrorMessage(g2d, errorMessage)
+            paintErrorMessage(g2d, spec, errorMessage)
         }
 
         if (subpage != null) {
-            paintSubpage(g2d, subpage)
+            paintSubpage(g2d, spec, subpage)
         }
     }
 }

@@ -118,6 +118,7 @@ private fun lineToPieces(line: String): List<Piece> {
     var heldGraphicsChar: String? = " "
     var holdGraphicsChar = false
     var content: String?
+    var piece: Piece? = null
 
     for ((index, str) in strings.withIndex()) {
         val m = capturingTagPattern.matcher(str)

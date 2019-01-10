@@ -28,7 +28,6 @@ repositories {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     compile "org.jetbrains.kotlin:kotlin-reflect"
-    compile 'com.github.thomasnield:rxkotlinfx:2.2.2'
     compile 'com.squareup.retrofit2:retrofit:2.5.0'
     compile 'com.squareup.retrofit2:adapter-rxjava2:2.5.0'
     compile 'com.squareup.moshi:moshi-kotlin:1.8.0'
