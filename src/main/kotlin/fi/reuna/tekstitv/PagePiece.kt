@@ -9,11 +9,11 @@ import java.util.regex.Pattern
 const val BLOCK_SYMBOL_OFFSET_START = 0xE200
 const val BLOCK_SYMBOL_OFFSET_END = 0xE240
 
-class Piece(val foreground: Color,
-            val background: Color?,
-            val mode: GraphicsMode?,
-            val content: String?,
-            var lineEnd: Boolean = false)
+class PagePiece(val foreground: Color,
+                val background: Color?,
+                val mode: GraphicsMode?,
+                val content: String?,
+                var lineEnd: Boolean = false)
 {
     fun paint(g: Graphics2D, spec: PaintSpec, x: Int, y: Int): Int {
 
@@ -69,13 +69,13 @@ class Piece(val foreground: Color,
 }
 
 /**
- * Converts teletext data received from the server to objects of type [Piece] that are then easier to handle while painting.
+ * Converts teletext data received from the server to objects of type [PagePiece] that are then easier to handle while painting.
  *
  * The content consists of spacing attribute tags (3-4 characters inside square brackets) and characters.
  * Depending on the mode defined by a spacing attribute, characters can point to graphics mode symbols (block symbols)
  * or to normal text characters.
  *
- * The original content is split to lines (separated by newline-char). The result specifies line changes in [Piece.lineEnd].
+ * The original content is split to lines (separated by newline-char). The result specifies line changes in [PagePiece.lineEnd].
  *
  * Note that graphics mode symbols are not glyphs in a font but instead created at runtime (see [BlockSymbol]).
  * This enables using whatever monospaced font for rendering the actual text content and exact control over the
@@ -92,8 +92,8 @@ class Piece(val foreground: Color,
  *
  * Double height mode isn't supported.
  */
-fun pageContentToPieces(content: String): List<Piece> {
-    val ret = ArrayList<Piece>()
+fun pageContentToPieces(content: String): List<PagePiece> {
+    val ret = ArrayList<PagePiece>()
     val lines = content.split("\n").dropLastWhile { it.isEmpty() } // Drop the last empty string produced by split().
 
     for (line in lines) {
@@ -110,9 +110,9 @@ private fun String.lastChar(): String? {
     return if (length > 0) substring(length - 1) else null
 }
 
-private fun lineToPieces(line: String): List<Piece> {
+private fun lineToPieces(line: String): List<PagePiece> {
     val strings = splitByTags(line)
-    val pieces = ArrayList<Piece>(strings.size)
+    val pieces = ArrayList<PagePiece>(strings.size)
 
     val defaultFg: Color = Color.WHITE
     var bg: Color? = null
@@ -124,7 +124,7 @@ private fun lineToPieces(line: String): List<Piece> {
 
         if (!content.isEmpty()) {
             val str = content.toString()
-            pieces.add(Piece(fg, bg, graphicsMode, if (graphicsMode != null) str.toGraphicsChars() else str))
+            pieces.add(PagePiece(fg, bg, graphicsMode, if (graphicsMode != null) str.toGraphicsChars() else str))
             content.delete(0, content.length)
         }
     }
@@ -198,12 +198,14 @@ private fun lineToPieces(line: String): List<Piece> {
                 graphicsMode = GraphicsMode.CONNECTED
 
             } else if (first == 'g') {
+                // 0x11-0x17 Mosaic Colour Codes
                 startNewPiece()
                 content.append(" ")
                 graphicsMode = GraphicsMode.CONNECTED
                 fg = colorForId(m.group(3)) ?: defaultFg
 
             } else if (first == 't') {
+                // 0x01-0x07 Alpha Colour Codes
                 content.append(" ")
                 startNewPiece()
                 graphicsMode = null

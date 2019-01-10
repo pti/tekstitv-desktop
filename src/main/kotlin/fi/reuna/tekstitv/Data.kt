@@ -29,6 +29,6 @@ data class Page(val number: Int, val subpages: List<Subpage>) {
 
 data class Subpage(val location: Location, val content: String) {
 
-    val pieces: Array<Piece> = pageContentToPieces(content).toTypedArray()
+    val pieces: Array<PagePiece> = pageContentToPieces(content).toTypedArray()
 
 }

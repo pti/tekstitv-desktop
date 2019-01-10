@@ -18,7 +18,7 @@ class PagePanelz : JPanel() {
         return spec!!
     }
 
-    fun test(g: Graphics2D, pieces: Array<Piece>) {
+    fun test(g: Graphics2D, pieces: Array<PagePiece>) {
         val spec = checkSpec()
         var x = 0
         var y = 0
