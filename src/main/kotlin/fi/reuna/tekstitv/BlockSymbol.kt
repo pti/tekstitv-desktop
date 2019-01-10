@@ -53,7 +53,7 @@ object BlockSymbol {
                 symbol.add(Area(block))
             }
 
-            codeBits = code shr 1
+            codeBits = codeBits shr 1
         }
 
         return symbol

@@ -13,7 +13,7 @@ class Piece(val foreground: Color,
             val background: Color?,
             val mode: GraphicsMode?,
             val content: String?,
-            val lineEnd: Boolean)
+            var lineEnd: Boolean = false)
 {
     fun paint(g: Graphics2D, spec: PaintSpec, x: Int, y: Int): Int {
 
@@ -30,16 +30,16 @@ class Piece(val foreground: Color,
 
         g.color = foreground
         g.font = spec.font
+        val restoreTransform = g.transform
 
         if (mode != null) {
-            val restoreTransform = g.transform
             var tx = x.toDouble()
             val ty = y.toDouble()
 
-            for (char in content.chars()) {
+            for (code in content.chars()) {
 
-                if (char in BLOCK_SYMBOL_OFFSET_START..(BLOCK_SYMBOL_OFFSET_END - 1)) {
-                    val code = char - BLOCK_SYMBOL_OFFSET_START
+                if (code in BLOCK_SYMBOL_OFFSET_START..(BLOCK_SYMBOL_OFFSET_END - 1)) {
+                    val code = code - BLOCK_SYMBOL_OFFSET_START
                     val symbol = BlockSymbol.get(code, mode)
 
                     // Block symbol shapes are within coordinates (0,0) (1,1) so scale to match the font size.
@@ -52,7 +52,7 @@ class Piece(val foreground: Color,
                     g.transform = restoreTransform
 
                 } else {
-                    g.drawString(char.toString(), tx.toInt(), y + spec.fontMetrics.ascent)
+                    g.drawString(code.toChar().toString(), tx.toInt(), y + spec.fontMetrics.ascent)
                 }
 
                 tx += spec.charWidth
@@ -64,13 +64,15 @@ class Piece(val foreground: Color,
 
         return contentWidth
     }
+
+    val isBlank: Boolean = content == null || content.isBlank()
 }
 
 /**
  * Converts teletext data received from the server to objects of type [Piece] that are then easier to handle while painting.
  *
- * The content consists of control tags (4 characters inside square brackets) and characters.
- * Depending on the mode defined by a control-string, characters can point to graphics mode symbols (block symbols)
+ * The content consists of spacing attribute tags (3-4 characters inside square brackets) and characters.
+ * Depending on the mode defined by a spacing attribute, characters can point to graphics mode symbols (block symbols)
  * or to normal text characters.
  *
  * The original content is split to lines (separated by newline-char). The result specifies line changes in [Piece.lineEnd].
@@ -92,7 +94,7 @@ class Piece(val foreground: Color,
  */
 fun pageContentToPieces(content: String): List<Piece> {
     val ret = ArrayList<Piece>()
-    val lines = content.split("\n")
+    val lines = content.split("\n").dropLastWhile { it.isEmpty() } // Drop the last empty string produced by split().
 
     for (line in lines) {
         ret += lineToPieces(line)
@@ -101,8 +103,8 @@ fun pageContentToPieces(content: String): List<Piece> {
     return ret
 }
 
-private val tagPattern = Pattern.compile("\\[[a-z]{4}\\]")
-private val capturingTagPattern = Pattern.compile("^\\[(([a-z])([a-z]{3}))\\]$")
+private val tagPattern = Pattern.compile("\\[[a-z]{3,4}\\]")
+private val capturingTagPattern = Pattern.compile("^\\[(([a-z])([a-z]{2,3}))\\]$")
 
 private fun String.lastChar(): String? {
     return if (length > 0) substring(length - 1) else null
@@ -112,90 +114,114 @@ private fun lineToPieces(line: String): List<Piece> {
     val strings = splitByTags(line)
     val pieces = ArrayList<Piece>(strings.size)
 
+    val defaultFg: Color = Color.WHITE
     var bg: Color? = null
-    var fg = Color.WHITE
+    var fg: Color = defaultFg
     var graphicsMode: GraphicsMode? = null
-    var heldGraphicsChar: String? = " "
-    var holdGraphicsChar = false
-    var content: String?
-    var piece: Piece? = null
+    var content = StringBuilder()
 
-    for ((index, str) in strings.withIndex()) {
-        val m = capturingTagPattern.matcher(str)
-        val lineEnd = index == strings.size - 1
+    fun startNewPiece() {
 
-        if (m.matches()) {
-            content = heldGraphicsChar
-
-            val control = m.group(1)
-            val first = m.group(2)[0]
-            var fgAfter: Color? = null
-            var releaseHeldGraphicsChar = false
-
-            if (control == "tbox") {
-                // Not sure what this exactly is, but it seems to be used to produce a solid box (==symbol 127 in graphics mode).
-                content = (BLOCK_SYMBOL_OFFSET_END - 1).toString()
-
-            } else if (control == "nbgr") {
-                // New background
-                bg = fg
-
-            } else if (control == "bbgr") {
-                // Seems to be used for clearing the background color.
-                bg = null
-
-            } else if (control == "hgra") {
-                // Hold graphics - instead of presenting a control with a space character use the last graphics symbol.
-                holdGraphicsChar = true
-                heldGraphicsChar = null
-
-                if (!pieces.isEmpty()) {
-                    val last = pieces[pieces.size - 1]
-                    heldGraphicsChar = last.content?.lastChar()
-                }
-
-                if (heldGraphicsChar == null) {
-                    heldGraphicsChar = " "
-                }
-
-                content = heldGraphicsChar
-
-            } else if (control == "sgra") {
-                graphicsMode = GraphicsMode.SEPARATED
-
-            } else if (first == 'g') {
-                graphicsMode = GraphicsMode.CONNECTED
-                fgAfter = colorForId(m.group(3))
-                releaseHeldGraphicsChar = true
-
-            } else if (first == 't') {
-                holdGraphicsChar = false
-                graphicsMode = null
-                fgAfter = colorForId(m.group(3))
-                releaseHeldGraphicsChar = true
-            }
-
-            pieces.add(Piece(fg, bg, graphicsMode, content, lineEnd))
-
-            if (fgAfter != null) {
-                fg = fgAfter
-            }
-
-            if (releaseHeldGraphicsChar) {
-                heldGraphicsChar = " "
-            }
-
-        } else {
-            content = if (graphicsMode != null) str.toGraphicsChars() else str
-            val piece = Piece(fg, bg, graphicsMode, content, lineEnd)
-            pieces.add(piece)
-
-            if (graphicsMode != null && holdGraphicsChar) {
-                heldGraphicsChar = piece.content?.lastChar()
-            }
+        if (!content.isEmpty()) {
+            val str = content.toString()
+            pieces.add(Piece(fg, bg, graphicsMode, if (graphicsMode != null) str.toGraphicsChars() else str))
+            content.delete(0, content.length)
         }
     }
 
+    for (str in strings) {
+        val m = capturingTagPattern.matcher(str)
+
+        if (m.matches()) {
+            /**
+             * String matched a tag that defines a spacing attribute.
+             *
+             * Only a subset of the spacing attributes are supported and it is likely that there are some errors in
+             * how some are handled. Unsupported attributes are handled as a single space character.
+             *
+             * List of known spacing attributes that are unsupported (code, function name and tag name):
+             *
+             * 0x08 Flash           (flas)
+             * 0x09 Steady          (stea)
+             * 0x0A End Box         (ebox)
+             * 0x0B Start Box       (sbox)
+             * 0x0C Normal Size     (nhei?)
+             * 0x0D Double Height   (dhei)
+             * 0x0E Double Width    (?)         -- level >1.5
+             * 0x0F Double Size     (?)         -- level >1.5
+             * 0x1C Conceal         (?)
+             * 0x1B ESC             (?)
+             * 0x1F Release Mosaics (rgra)
+             * 0x?? ?               (cdis)
+             * 0x?? ?               (dle)
+             *
+             * The attributes are defined in Enhanced Teletext Specification (ETSI EN 300 706 v1.2.1).
+             */
+            val attr = m.group(1)
+            val first = m.group(2)[0]
+
+            // TODO handle hold graphics
+
+            if (attr == "tbox") {
+                // Not sure what this exactly is, but it seems to be used to produce a solid box (==symbol 0x3F in graphics mode).
+                // Perhaps a separate tag is needed because the symbol would correspond with the DEL character (0x7F) (see String.toGraphicsChars)?
+
+                if (graphicsMode == null) {
+                    startNewPiece()
+                    graphicsMode = GraphicsMode.CONNECTED
+                }
+
+                content.append(0x7F.toChar())
+
+            } else if (attr == "nbgr") {
+                // 0x1D New Background. Immediate change.
+                startNewPiece()
+                content.append(" ")
+                bg = fg
+
+            } else if (attr == "bbgr") {
+                // 0x1C Black Background. Immediate change.
+                startNewPiece()
+                content.append(" ")
+                bg = null
+
+            } else if (attr == "sgra") {
+                // 0x1A Separated Mosaic Graphics.
+                startNewPiece()
+                content.append(" ")
+                graphicsMode = GraphicsMode.SEPARATED
+
+            } else if (attr == "cgra") {
+                // 0x19 Contiguous Mosaic Graphics
+                startNewPiece()
+                content.append(" ")
+                graphicsMode = GraphicsMode.CONNECTED
+
+            } else if (first == 'g') {
+                startNewPiece()
+                content.append(" ")
+                graphicsMode = GraphicsMode.CONNECTED
+                fg = colorForId(m.group(3)) ?: defaultFg
+
+            } else if (first == 't') {
+                content.append(" ")
+                startNewPiece()
+                graphicsMode = null
+                fg = colorForId(m.group(3)) ?: defaultFg
+
+            } else {
+                content.append(" ")
+                startNewPiece()
+            }
+
+        } else {
+            content.append(str)
+            startNewPiece()
+        }
+    }
+
+    startNewPiece() // In case line ended with spacing attribute tags.
+    pieces.lastOrNull()?.apply { lineEnd = true }
     return pieces
 }
 
@@ -217,7 +243,7 @@ private fun splitByTags(line: String): List<String> {
         offset = m.end()
     }
 
-    if (offset < line.length) {
+    if (offset < line.length - 1) {
         pieces.add(line.substring(offset))
     }
 
@@ -241,35 +267,32 @@ private fun String.toGraphicsChars(): String {
     val converted = StringBuilder(length)
     var c: Int
 
-    for (i in 0 until length) {
-        c = this[i].toInt()
+    for (ch in toCharArray()) {
+        c = ch.toInt()
 
         if (c in 64..95) {
 
-            val ch = when (c) {
+            val chr = when (c) {
                 91 -> '<'
                 92 -> '½'
                 93 -> '>'
                 94 -> '^'
                 95 -> '#'
-                else ->
-                    // 64-90 are a direct match with ASCII characters (@A-Z).
-                    c.toChar()
+                else -> ch // 64-90 are a direct match with ASCII characters (@A-Z).
             }
 
-            c = ch.toInt()
+            converted.append(chr)
 
         } else {
 
             if (c > 95) {
-                c -= 32
+                c -= 0x20
             }
 
-            c -= 32
+            c -= 0x20
             c += BLOCK_SYMBOL_OFFSET_START
+            converted.append(c.toChar())
         }
-
-        converted.append(c.toChar())
     }
 
     return converted.toString()
