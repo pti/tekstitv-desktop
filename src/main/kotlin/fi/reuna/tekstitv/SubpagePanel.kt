@@ -47,13 +47,21 @@ class SubpagePanel : JPanel() {
         var x = x0
         var y = 0
         g.font = spec.font
+        var lastRowWasDoubleHeight = false
 
         for (piece in subpage.pieces) {
-            x += piece.paint(g, spec, x, y)
+
+            // Sometimes double height rows are followed by lines with some content that isn't visible in the web version.
+            // Perhaps there is some other way of not displaying that content, but for now just ignore the following row
+            // (at least currently this results in correct looking pages).
+            if (!lastRowWasDoubleHeight) {
+                x += piece.paint(g, spec, x, y)
+            }
 
             if (piece.lineEnd) {
                 y += spec.lineHeight
                 x = x0
+                lastRowWasDoubleHeight = piece.doubleHeight
             }
         }
     }

@@ -11,13 +11,13 @@ private const val SEPARATED_MARGIN_Y = 0.06
 private const val SYMBOL_COUNT = 64
 
 enum class GraphicsMode {
-    CONNECTED,
+    CONTIGUOUS,
     SEPARATED
 }
 
 object BlockSymbol {
 
-    private val connectedSymbols = Array(SYMBOL_COUNT) { i -> create(i, GraphicsMode.CONNECTED) }
+    private val connectedSymbols = Array(SYMBOL_COUNT) { i -> create(i, GraphicsMode.CONTIGUOUS) }
     private val separatedSymbols = Array(SYMBOL_COUNT) { i -> create(i, GraphicsMode.SEPARATED) }
 
     fun get(code: Int, mode: GraphicsMode): Shape {

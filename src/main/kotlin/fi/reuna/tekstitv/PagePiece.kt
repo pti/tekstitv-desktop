@@ -12,54 +12,64 @@ const val BLOCK_SYMBOL_OFFSET_END = 0xE240
 class PagePiece(val foreground: Color,
                 val background: Color?,
                 val mode: GraphicsMode?,
-                val content: String?,
-                var lineEnd: Boolean = false)
+                val content: String?)
 {
+    var lineEnd = false
+    var doubleHeight = false
+
     fun paint(g: Graphics2D, spec: PaintSpec, x: Int, y: Int): Int {
 
         if (content == null) {
             return 0
         }
 
+        val multiplier = if (doubleHeight) 2 else 1
         val contentWidth = spec.charWidth * content.length
 
         if (background != null) {
             g.color = background
-            g.fillRect(x, y, contentWidth, spec.charHeight)
+            g.fillRect(x, y, contentWidth, spec.charHeight * multiplier)
         }
 
         g.color = foreground
         g.font = spec.font
         val restoreTransform = g.transform
+        var tx = x.toDouble()
+        val ty = y.toDouble()
+
+        fun drawTextPiece(str: String) {
+            g.translate(tx, ty + spec.fontMetrics.ascent * multiplier)
+            g.scale(1.0, 1.0 * multiplier)
+            g.drawString(str, 0, 0)
+            g.transform = restoreTransform
+        }
 
         if (mode != null) {
-            var tx = x.toDouble()
-            val ty = y.toDouble()
 
             for (code in content.chars()) {
 
                 if (code in BLOCK_SYMBOL_OFFSET_START..(BLOCK_SYMBOL_OFFSET_END - 1)) {
-                    val code = code - BLOCK_SYMBOL_OFFSET_START
-                    val symbol = BlockSymbol.get(code, mode)
+                    val symbolCode = code - BLOCK_SYMBOL_OFFSET_START
+                    val symbol = BlockSymbol.get(symbolCode, mode)
 
                     // Block symbol shapes are within coordinates (0,0) (1,1) so scale to match the font size.
                     g.transform = restoreTransform
                     g.translate(tx, ty)
-                    g.scale(spec.charWidth.toDouble(), spec.charHeight.toDouble())
+                    g.scale(spec.charWidth.toDouble(), spec.charHeight.toDouble() * multiplier)
 
                     g.fill(symbol)
 
                     g.transform = restoreTransform
 
                 } else {
-                    g.drawString(code.toChar().toString(), tx.toInt(), y + spec.fontMetrics.ascent)
+                    drawTextPiece(code.toChar().toString())
                 }
 
                 tx += spec.charWidth
             }
 
         } else {
-            g.drawString(content, x, y + spec.fontMetrics.ascent)
+            drawTextPiece(content)
         }
 
         return contentWidth
@@ -119,6 +129,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
     var fg: Color = defaultFg
     var graphicsMode: GraphicsMode? = null
     var content = StringBuilder()
+    var doubleHeight = false
 
     fun startNewPiece() {
 
@@ -146,7 +157,6 @@ private fun lineToPieces(line: String): List<PagePiece> {
              * 0x0A End Box         (ebox)
              * 0x0B Start Box       (sbox)
              * 0x0C Normal Size     (nhei?)
-             * 0x0D Double Height   (dhei)
              * 0x0E Double Width    (?)         -- level >1.5
              * 0x0F Double Size     (?)         -- level >1.5
              * 0x1C Conceal         (?)
@@ -168,7 +178,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
 
                 if (graphicsMode == null) {
                     startNewPiece()
-                    graphicsMode = GraphicsMode.CONNECTED
+                    graphicsMode = GraphicsMode.CONTIGUOUS
                 }
 
                 content.append(0x7F.toChar())
@@ -195,13 +205,25 @@ private fun lineToPieces(line: String): List<PagePiece> {
                 // 0x19 Contiguous Mosaic Graphics
                 startNewPiece()
                 content.append(" ")
-                graphicsMode = GraphicsMode.CONNECTED
+                graphicsMode = GraphicsMode.CONTIGUOUS
+
+            } else if (attr == "dhei") {
+                // 0x0D Double Height spec talks about stretching the chars and mosaics following the code, but
+                // looking at the webpage version the whole line seems to get stretched - which makes more sense.
+                // This interpretation also 'enables' ignoring the normal size attribute (nhei).
+                doubleHeight = true
+                content.append(" ")
+                startNewPiece()
 
             } else if (first == 'g') {
                 // 0x11-0x17 Mosaic Colour Codes
                 startNewPiece()
                 content.append(" ")
-                graphicsMode = GraphicsMode.CONNECTED
+
+                if (graphicsMode == null) {
+                    graphicsMode = GraphicsMode.CONTIGUOUS
+                }
+
                 fg = colorForId(m.group(3)) ?: defaultFg
 
             } else if (first == 't') {
@@ -224,6 +246,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
 
     startNewPiece() // In case line ended with spacing attribute tags.
     pieces.lastOrNull()?.apply { lineEnd = true }
+    pieces.forEach { it.doubleHeight = doubleHeight }
     return pieces
 }
 
