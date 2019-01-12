@@ -14,19 +14,23 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val fontMetrics: FontMetrics
     val background = Color.BLACK!!
     val foreground = Color.WHITE!!
+    val contentWidth: Int
+    val contentHeight: Int
+    val margin = 10 // TODO from config
 
     init {
-        // TODO read from config
-        font = fontForSize(g, "Droid Sans Mono", width, height)
+        font = fontForSize(g, "Droid Sans Mono", width - 2 * margin, height - 2 * margin) // TODO from config
         fontMetrics = g.getFontMetrics(font)
         charWidth = fontMetrics.charWidth(0)
         charHeight = fontMetrics.height
         lineHeight = fontMetrics.height
+        contentWidth = MAX_CHARS_PER_LINE * charWidth
+        contentHeight = MAX_LINES_PER_PAGE * lineHeight
     }
 }
 
-private const val MAX_CHARS_PER_LINE = 43
-private const val MAX_LINES_PER_PAGE = 20
+private const val MAX_CHARS_PER_LINE = 40
+private const val MAX_LINES_PER_PAGE = 23
 
 private fun fontForSize(g: Graphics, fontFamily: String, width: Int, height: Int): Font
 {

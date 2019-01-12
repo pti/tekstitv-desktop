@@ -43,9 +43,10 @@ class SubpagePanel : JPanel() {
     }
 
     private fun paintSubpage(g: Graphics2D, spec: PaintSpec, subpage: Subpage) {
-        val x0 = 0
+        val x0 = (width - 2 * spec.margin - spec.contentWidth) / 2 + spec.margin
         var x = x0
-        var y = 0
+        var y = (height - 2 * spec.margin - spec.contentHeight) / 2 + spec.margin
+
         g.font = spec.font
         var lastRowWasDoubleHeight = false
 
