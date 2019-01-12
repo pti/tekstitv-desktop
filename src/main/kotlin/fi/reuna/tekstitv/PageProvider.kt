@@ -59,7 +59,7 @@ class PageProvider {
                         // If the currentLocation points to a non-existing page, then nextPage/prevPage requests always fail. If that happens, simply try to request to the nextPage page by number.
                         // This is useful in case the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
                         .onErrorResumeNext { ttv.getPage(relativeTo.page + direction.delta) }
-                        .map { handle(it, relativeTo) }
+                        .map { handle(it, relativeTo.withSub(0)) }
                         .onErrorReturn { PageEvent.Failed(it, relativeTo) }
                         .doOnSuccess { pageEventSubject.onNext(it) }
                         .subscribe()
@@ -161,15 +161,16 @@ class PageProvider {
     private fun handle(received: TTVContent, ref: Location): PageEvent {
         val pages = received.pages.map { Page(it) }
         pages.forEach { cache[it.number] = CacheEntry(it) }
-        val firstSub = pages.firstOrNull()?.subpages?.firstOrNull()
+        val sub = pages.firstOrNull()?.getSubpage(ref.sub)
 
-        if (firstSub != null) {
-            historyAdd(firstSub.location)
+
+        if (sub != null && (history.isEmpty() || history.peek().page != sub.location.page)) {
+            historyAdd(sub.location)
         }
 
-        return when (firstSub) {
+        return when (sub) {
             null -> PageEvent.NotFound(ref)
-            else -> PageEvent.Loaded(firstSub)
+            else -> PageEvent.Loaded(sub)
         }
     }
 
