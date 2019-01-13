@@ -7,7 +7,8 @@ import java.util.regex.Pattern
 
 /** Character code point offset for block symbols. */
 const val BLOCK_SYMBOL_OFFSET_START = 0xE200
-const val BLOCK_SYMBOL_OFFSET_END = 0xE240
+const val BLOCK_SYMBOL_OFFSET_END = 0xE23F
+val BLOCK_SYMBOL_RANGE = BLOCK_SYMBOL_OFFSET_START..BLOCK_SYMBOL_OFFSET_END
 
 class PagePiece(val foreground: Color,
                 val background: Color?,
@@ -48,9 +49,9 @@ class PagePiece(val foreground: Color,
 
             for (code in content.chars()) {
 
-                if (code in BLOCK_SYMBOL_OFFSET_START..(BLOCK_SYMBOL_OFFSET_END - 1)) {
+                if (code in BLOCK_SYMBOL_RANGE) {
                     val symbolCode = code - BLOCK_SYMBOL_OFFSET_START
-                    val symbol = BlockSymbol.get(symbolCode, mode)
+                    val symbol = BlockSymbol.get(symbolCode, mode ?: GraphicsMode.CONTIGUOUS)
 
                     // Block symbol shapes are within coordinates (0,0) (1,1) so scale to match the font size.
                     g.transform = restoreTransform
@@ -130,6 +131,9 @@ private fun lineToPieces(line: String): List<PagePiece> {
     var graphicsMode: GraphicsMode? = null
     var content = StringBuilder()
     var doubleHeight = false
+    val defaultSpaceChar = ' '
+    var heldGraphicsChar = defaultSpaceChar
+    var hold = false
 
     fun startNewPiece() {
 
@@ -139,6 +143,12 @@ private fun lineToPieces(line: String): List<PagePiece> {
             content.delete(0, content.length)
         }
     }
+
+    fun appendSpace() { content.append(if (hold) heldGraphicsChar else defaultSpaceChar) }
+
+    fun resetHeldGraphicsChar() { heldGraphicsChar = defaultSpaceChar; hold = false }
+
+    fun updateHeldGraphicsChar() { if (content.isNotEmpty()) heldGraphicsChar = content.last() }
 
     for (str in strings) {
         val m = capturingTagPattern.matcher(str)
@@ -161,7 +171,6 @@ private fun lineToPieces(line: String): List<PagePiece> {
              * 0x0F Double Size     (?)         -- level >1.5
              * 0x1C Conceal         (?)
              * 0x1B ESC             (?)
-             * 0x1F Release Mosaics (rgra)
              * 0x?? ?               (cdis)
              * 0x?? ?               (dle)
              *
@@ -170,76 +179,78 @@ private fun lineToPieces(line: String): List<PagePiece> {
             val attr = m.group(1)
             val first = m.group(2)[0]
 
-            // TODO handle hold graphics
-
             if (attr == "tbox") {
-                // Not sure what this exactly is, but it seems to be used to produce a solid box (==symbol 0x3F in graphics mode).
+                // Not sure what this exactly is, but it seems to be used to produce a solid box:
+                // symbol 0x3F in graphics mode and a bit smaller filled box in text mode.
                 // Perhaps a separate tag is needed because the symbol would correspond with the DEL character (0x7F) (see String.toGraphicsChars)?
-
-                if (graphicsMode == null) {
-                    startNewPiece()
-                    graphicsMode = GraphicsMode.CONTIGUOUS
-                }
-
-                content.append(0x7F.toChar())
+                content.append(if (graphicsMode != null) BLOCK_SYMBOL_OFFSET_END.toChar() else '■')
+                updateHeldGraphicsChar()
 
             } else if (attr == "nbgr") {
                 // 0x1D New Background. Immediate change.
                 startNewPiece()
-                content.append(" ")
+                appendSpace()
                 bg = fg
 
             } else if (attr == "bbgr") {
                 // 0x1C Black Background. Immediate change.
                 startNewPiece()
-                content.append(" ")
+                appendSpace()
                 bg = null
 
             } else if (attr == "sgra") {
                 // 0x1A Separated Mosaic Graphics.
                 startNewPiece()
-                content.append(" ")
                 graphicsMode = GraphicsMode.SEPARATED
+                appendSpace()
 
             } else if (attr == "cgra") {
                 // 0x19 Contiguous Mosaic Graphics
                 startNewPiece()
-                content.append(" ")
                 graphicsMode = GraphicsMode.CONTIGUOUS
+                appendSpace()
+
+            } else if (attr == "hgra") {
+                // 0x1E Hold Mosaic. Instead of presenting a control with a space character use the last graphics symbol.
+                hold = true
+                appendSpace()
+
+            } else if (attr == "rgra") {
+                // 0x1F Release Mosaic.
+                appendSpace()
+                resetHeldGraphicsChar()
 
             } else if (attr == "dhei") {
                 // 0x0D Double Height spec talks about stretching the chars and mosaics following the code, but
                 // looking at the webpage version the whole line seems to get stretched - which makes more sense.
                 // This interpretation also 'enables' ignoring the normal size attribute (nhei).
                 doubleHeight = true
-                content.append(" ")
+                appendSpace()
                 startNewPiece()
 
             } else if (first == 'g') {
                 // 0x11-0x17 Mosaic Colour Codes
+                appendSpace()
                 startNewPiece()
-                content.append(" ")
-
-                if (graphicsMode == null) {
-                    graphicsMode = GraphicsMode.CONTIGUOUS
-                }
-
+                if (graphicsMode == null) graphicsMode = GraphicsMode.CONTIGUOUS
                 fg = colorForId(m.group(3)) ?: defaultFg
 
             } else if (first == 't') {
                 // 0x01-0x07 Alpha Colour Codes
-                content.append(" ")
+                appendSpace()
                 startNewPiece()
                 graphicsMode = null
+                resetHeldGraphicsChar()
                 fg = colorForId(m.group(3)) ?: defaultFg
 
             } else {
-                content.append(" ")
+                appendSpace()
                 startNewPiece()
             }
 
         } else {
             content.append(str)
+            updateHeldGraphicsChar()
             startNewPiece()
         }
     }
@@ -308,7 +319,7 @@ private fun String.toGraphicsChars(): String {
 
             converted.append(chr)
 
-        } else {
+        } else if (c < 128) {
 
             if (c > 95) {
                 c -= 0x20
@@ -316,6 +327,9 @@ private fun String.toGraphicsChars(): String {
 
             c -= 0x20
             c += BLOCK_SYMBOL_OFFSET_START
+            converted.append(c.toChar())
+
+        } else if (c in BLOCK_SYMBOL_RANGE) {
             converted.append(c.toChar())
         }
     }

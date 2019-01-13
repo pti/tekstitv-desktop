@@ -19,9 +19,9 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val margin = 10 // TODO from config
 
     init {
-        font = fontForSize(g, "Droid Sans Mono", width - 2 * margin, height - 2 * margin) // TODO from config
+        font = fontForSize(g, "Fira Mono", width - 2 * margin, height - 2 * margin) // TODO from config
         fontMetrics = g.getFontMetrics(font)
-        charWidth = fontMetrics.charWidth(0)
+        charWidth = fontMetrics.charWidth('0')
         charHeight = fontMetrics.height
         lineHeight = fontMetrics.height
         contentWidth = MAX_CHARS_PER_LINE * charWidth
@@ -47,8 +47,8 @@ private fun fontForSize(g: Graphics, fontFamily: String, width: Int, height: Int
         }
     }
 
-    val font = Font(fontFamily, 0, 1)
-    val widthFit = calculateFittingFontSize(font) { MAX_CHARS_PER_LINE * it.charWidth(0) <= width }
+    val font = Font(fontFamily, Font.PLAIN, 1)
+    val widthFit = calculateFittingFontSize(font) { MAX_CHARS_PER_LINE * it.charWidth('0') <= width }
     val heightFit = calculateFittingFontSize(font) { MAX_LINES_PER_PAGE * it.height <= height }
     val size = Math.min(widthFit, heightFit)
     return font.deriveFont(size)
