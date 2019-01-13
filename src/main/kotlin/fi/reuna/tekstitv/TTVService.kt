@@ -55,6 +55,11 @@ interface TTVService {
 
             instance = retrofit.create(TTVService::class.java)
         }
+
+        fun shutdown() {
+            // Needed for the dispatcher thread to shutdown (otherwise the thread could keep the app from closing).
+            client.dispatcher().executorService().shutdown()
+        }
     }
 }
 

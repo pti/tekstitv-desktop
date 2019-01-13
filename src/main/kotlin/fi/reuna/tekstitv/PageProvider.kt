@@ -1,6 +1,7 @@
 package fi.reuna.tekstitv
 
 import io.reactivex.Observable
+import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
@@ -23,6 +24,7 @@ class PageProvider {
     private val pageEventSubject = BehaviorSubject.create<PageEvent>()
     private val relativeSubject = PublishSubject.create<Direction>()
     private val scheduler = Schedulers.single()
+    private val disposables = CompositeDisposable()
 
     // TODO thread safety
 
@@ -35,7 +37,7 @@ class PageProvider {
     init { 
         observable = pageEventSubject
 
-        relativeSubject
+        disposables += relativeSubject
                 .observeOn(scheduler)
                 .subscribe { direction ->
                     val ttv = TTVService.instance
@@ -64,6 +66,11 @@ class PageProvider {
                         .doOnSuccess { pageEventSubject.onNext(it) }
                         .subscribe()
                 }
+    }
+
+    fun stop() {
+        TTVService.shutdown()
+        disposables.dispose()
     }
 
     // TODO currentLocation and history etc handling needs to be done thread safely - mutex?
