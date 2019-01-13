@@ -150,12 +150,19 @@ class PageProvider {
     }
 
     fun setSubpage(direction: Direction) {
-        // Do nothing if trying to move beyond bounds.
-        // Instead of adding another instance of the current page to the history stack, replace page's current instance with updated subpage. Quicker to move backwards in history this way.
-        currentLocation.moveSubpage(direction.delta).fromCache()?.let {
-            history.pop()
-            history.push(it.location)
-            pageEventSubject.onNext(PageEvent.Loaded(it))
+        val page = cache[currentLocation.page]?.page
+
+        if (page != null) {
+            val numSubs = page.subpages.size
+            var newSubpage = (currentLocation.sub + direction.delta) % numSubs
+            if (newSubpage < 0) newSubpage = numSubs - 1
+
+            // Instead of adding another instance of the current page to the history stack, replace page's current instance with updated subpage. Quicker to move backwards in history this way.
+            currentLocation.withSub(newSubpage).fromCache()?.let {
+                history.pop()
+                history.push(it.location)
+                pageEventSubject.onNext(PageEvent.Loaded(it))
+            }
         }
     }
 
