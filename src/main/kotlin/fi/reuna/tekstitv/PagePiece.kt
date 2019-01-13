@@ -7,8 +7,14 @@ import java.util.regex.Pattern
 
 /** Character code point offset for block symbols. */
 const val BLOCK_SYMBOL_OFFSET_START = 0xE200
-const val BLOCK_SYMBOL_OFFSET_END = 0xE23F
+const val BLOCK_SYMBOL_OFFSET_END = 0xE27F
+
 val BLOCK_SYMBOL_RANGE = BLOCK_SYMBOL_OFFSET_START..BLOCK_SYMBOL_OFFSET_END
+
+enum class GraphicsMode(val range: IntRange) {
+    CONTIGUOUS(0xE200..0xE23F),
+    SEPARATED(0xE240..0xE27F)
+}
 
 class PagePiece(val foreground: Color,
                 val background: Color?,
@@ -17,6 +23,7 @@ class PagePiece(val foreground: Color,
 {
     var lineEnd = false
     var doubleHeight = false
+    val isBlank = content == null || content.isBlank()
 
     fun paint(g: Graphics2D, spec: PaintSpec, x: Int, y: Int): Int {
 
@@ -51,7 +58,7 @@ class PagePiece(val foreground: Color,
 
                 if (code in BLOCK_SYMBOL_RANGE) {
                     val symbolCode = code - BLOCK_SYMBOL_OFFSET_START
-                    val symbol = BlockSymbol.get(symbolCode, mode ?: GraphicsMode.CONTIGUOUS)
+                    val symbol = BlockSymbol.get(symbolCode)
 
                     // Block symbol shapes are within coordinates (0,0) (1,1) so scale to match the font size.
                     g.transform = restoreTransform
@@ -75,8 +82,6 @@ class PagePiece(val foreground: Color,
 
         return contentWidth
     }
-
-    val isBlank: Boolean = content == null || content.isBlank()
 }
 
 /**
@@ -139,7 +144,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
 
         if (!content.isEmpty()) {
             val str = content.toString()
-            pieces.add(PagePiece(fg, bg, graphicsMode, if (graphicsMode != null) str.toGraphicsChars() else str))
+            pieces.add(PagePiece(fg, bg, graphicsMode, graphicsMode?.convertChars(str) ?: str))
             content.delete(0, content.length)
         }
     }
@@ -183,7 +188,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
                 // Not sure what this exactly is, but it seems to be used to produce a solid box:
                 // symbol 0x3F in graphics mode and a bit smaller filled box in text mode.
                 // Perhaps a separate tag is needed because the symbol would correspond with the DEL character (0x7F) (see String.toGraphicsChars)?
-                content.append(if (graphicsMode != null) BLOCK_SYMBOL_OFFSET_END.toChar() else '■')
+                content.append(graphicsMode?.range?.endInclusive?.toChar() ?: '■')
                 updateHeldGraphicsChar()
 
             } else if (attr == "nbgr") {
@@ -299,11 +304,11 @@ private fun colorForId(colorId: String): Color? {
     }
 }
 
-private fun String.toGraphicsChars(): String {
-    val converted = StringBuilder(length)
+private fun GraphicsMode.convertChars(str: String): String {
+    val converted = StringBuilder(str.length)
     var c: Int
 
-    for (ch in toCharArray()) {
+    for (ch in str.toCharArray()) {
         c = ch.toInt()
 
         if (c in 64..95) {
@@ -326,11 +331,14 @@ private fun String.toGraphicsChars(): String {
             }
 
             c -= 0x20
-            c += BLOCK_SYMBOL_OFFSET_START
+            c += range.start
             converted.append(c.toChar())
 
         } else if (c in BLOCK_SYMBOL_RANGE) {
             converted.append(c.toChar())
+
+        } else {
+            Log.error("Invalid character code $c")
         }
     }
 

@@ -98,7 +98,7 @@ class PagePanelz : JPanel() {
             val v = 255
             g2d.color = Color(v, v, v)
 
-            val symbol = BlockSymbol.get(i, GraphicsMode.CONTIGUOUS)
+            val symbol = BlockSymbol.get(i)
             g2d.fill(symbol)
         }
     }
