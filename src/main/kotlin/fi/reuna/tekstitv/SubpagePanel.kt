@@ -79,8 +79,9 @@ class SubpagePanel : JPanel() {
         g.drawString(errorMessage, (width - textWidth) / 2, (height - textHeight) / 2)
     }
 
-    override fun paint(g: Graphics?) {
-        super.paint(g)
+    override fun paintComponent(g: Graphics?) {
+        super.paintComponent(g)
+
         val g2d = g as Graphics2D
         val subpage = subpage
         val errorMessage = errorMessage
