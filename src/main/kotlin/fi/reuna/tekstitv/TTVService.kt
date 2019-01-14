@@ -40,6 +40,17 @@ interface TTVService {
                         val newRequest = request.newBuilder().url(newUrl).build()
                         chain.proceed(newRequest)
                     }
+                    .addInterceptor { chain ->
+                        val request = chain.request()
+                        Log.debug("send ${request.method()} ${request.url()}")
+
+                        val resp = chain.proceed(request)
+
+                        val elapsed = resp.receivedResponseAtMillis() - resp.sentRequestAtMillis()
+                        Log.debug("recv ${request.method()} ${resp.request().url()} [${resp.code()}] ($elapsed ms)")
+
+                        resp
+                    }
                     .build()
 
             val moshi = Moshi.Builder()

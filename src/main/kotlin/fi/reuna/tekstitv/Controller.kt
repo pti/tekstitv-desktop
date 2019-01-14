@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
-class Controller(private val panel: SubpagePanel) {
+class Controller(private val panel: SubpagePanel, frame: JFrame) {
 
     private val provider = PageProvider()
     private val digitBuffer = DigitBuffer()
