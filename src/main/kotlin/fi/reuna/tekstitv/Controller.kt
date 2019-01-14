@@ -1,7 +1,9 @@
 package fi.reuna.tekstitv
 
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.disposables.Disposable
 import java.awt.event.KeyEvent
+import java.awt.event.WindowEvent
 import java.util.concurrent.TimeUnit
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
@@ -11,8 +13,7 @@ class Controller(private val panel: SubpagePanel, frame: JFrame) {
     private val provider = PageProvider()
     private val digitBuffer = DigitBuffer()
     private val disposables = CompositeDisposable()
-
-    // TODO ^ stop autorefresh when minimized - kts JXTest
+    private var autoRefresher: Disposable? = null
 
     init {
         provider.observe()
@@ -35,14 +36,9 @@ class Controller(private val panel: SubpagePanel, frame: JFrame) {
                     }
                 }
 
-        disposables += provider.observe()
-                .debounce(1, TimeUnit.MINUTES)
-                .subscribe { provider.reload() }
-
         Log.debug("provider observer set up")
         provider.set(100) // TODO initial page defined in config
-
-        val frame = SwingUtilities.getRoot(panel) as JFrame
+        Log.debug("set initial page")
 
         disposables += frame.observeKeyEvents()
                 .filter { it.id == KeyEvent.KEY_PRESSED }
@@ -93,11 +89,38 @@ class Controller(private val panel: SubpagePanel, frame: JFrame) {
                     }
                     // TODO handle r g y b -> shortcuts to "favorites" -- tee joku favmanager joka käsittelee valinnan sivukohtaisesti
                 }
+
+        startAutoRefresh()
+
+        frame.observeWindowEvents()
+                .subscribe {
+                    when (it.id) {
+                        WindowEvent.WINDOW_ICONIFIED -> stopAutoRefresh()
+                        WindowEvent.WINDOW_DEICONIFIED -> {
+                            provider.reload()
+                            startAutoRefresh()
+                        }
+                    }
+                }
     }
 
     fun stop() {
+        stopAutoRefresh()
         digitBuffer.close()
         disposables.dispose()
         provider.stop()
+    }
+
+    private fun startAutoRefresh() {
+        if (autoRefresher != null) return
+
+        autoRefresher = provider.observe()
+                .debounce(1, TimeUnit.MINUTES)
+                .subscribe { provider.reload() }
+    }
+
+    private fun stopAutoRefresh() {
+        autoRefresher?.dispose()
+        autoRefresher = null
     }
 }
