@@ -1,5 +1,6 @@
 package fi.reuna.tekstitv
 
+import java.awt.Color
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
@@ -10,6 +11,10 @@ import javax.swing.SwingUtilities
 class SubpagePanel : JPanel() {
 
     private var spec: PaintSpec? = null
+
+    init {
+        background = Color.BLACK
+    }
 
     var subpage: Subpage? = null
         set(value) {
@@ -79,12 +84,9 @@ class SubpagePanel : JPanel() {
         val g2d = g as Graphics2D
         val subpage = subpage
         val errorMessage = errorMessage
+        val spec = checkSpec()
 
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
-
-        val spec = checkSpec()
-        g.color = spec.background
-        g.fillRect(0, 0, width, height)
 
         if (errorMessage != null) {
             paintErrorMessage(g2d, spec, errorMessage)
