@@ -177,7 +177,6 @@ class PageProvider {
         pages.forEach { cache[it.number] = CacheEntry(it) }
         val sub = pages.firstOrNull()?.getSubpage(ref.sub)
 
-
         if (sub != null && (history.isEmpty() || history.peek().page != sub.location.page)) {
             historyAdd(sub.location)
         }
