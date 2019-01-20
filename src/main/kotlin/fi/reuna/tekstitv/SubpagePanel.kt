@@ -56,12 +56,11 @@ class SubpagePanel : JPanel() {
         }
     }
 
-    private fun paintErrorMessage(g: Graphics2D, spec: PaintSpec, event: PageEvent) {
+    private fun paintErrorMessage(g: Graphics2D, spec: PaintSpec, event: PageEvent.Failed) {
 
-        val errorMessage = when (event) {
-            is PageEvent.NotFound -> "Page ${event.location?.page ?: -1} not found"
-            is PageEvent.Failed -> "Error loading page ${event.location?.page ?: -1}"
-            else -> return
+        val errorMessage = when (event.type) {
+            ErrorType.NOT_FOUND -> "Page ${event.location.page} not found"
+            else -> "Error loading page ${event.location.page}"
         }
 
         val textWidth = SwingUtilities.computeStringWidth(spec.fontMetrics, errorMessage)
@@ -85,7 +84,7 @@ class SubpagePanel : JPanel() {
             is PageEvent.Loaded -> {
                 paintSubpage(g2d, spec, event.subpage)
             }
-            is PageEvent.Failed, is PageEvent.NotFound -> {
+            is PageEvent.Failed -> {
                 paintErrorMessage(g2d, spec, event)
             }
         }

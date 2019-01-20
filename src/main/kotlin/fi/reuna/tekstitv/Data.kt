@@ -15,10 +15,14 @@ data class Location(val page: Int, val sub: Int) {
     }
 }
 
+enum class ErrorType {
+    NOT_FOUND,
+    OTHER
+}
+
 sealed class PageEvent {
     data class Loaded(val subpage: Subpage) : PageEvent()
-    data class NotFound(val location: Location? = null) : PageEvent()
-    data class Failed(val error: Throwable, val location: Location? = null) : PageEvent()
+    data class Failed(val type: ErrorType, val error: Throwable?, val location: Location, val autoReload: Boolean) : PageEvent()
 }
 
 data class Page(val number: Int, val subpages: List<Subpage>) {

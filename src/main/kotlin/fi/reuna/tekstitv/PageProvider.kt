@@ -60,8 +60,11 @@ class PageProvider {
                         // If the currentLocation points to a non-existing page, then nextPage/prevPage requests always fail. If that happens, simply try to request to the nextPage page by number.
                         // This is useful in case the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
                         .onErrorResumeNext { ttv.getPage(relativeTo.page + direction.delta) }
-                        .map { handle(it, relativeTo.withSub(0)) }
-                        .onErrorReturn { it.asPageEvent(relativeTo) }
+                        .map { handle(it, relativeTo.withSub(0), false) }
+                        .onErrorReturn {
+                            Log.error("Failed to get page ${direction.delta} relative to ${relativeTo.page}: $it")
+                            it.asPageEvent(relativeTo, false)
+                        }
                         .doOnSuccess { pageEventSubject.onNext(it) }
                         .subscribe()
                 }
@@ -80,7 +83,7 @@ class PageProvider {
         return observable
     }
 
-    fun set(location: Location, checkCache: Boolean = true) {
+    fun set(location: Location, checkCache: Boolean = true, autoReload: Boolean = false) {
     // TODO relativeSubject should be stopped (completed?) - setting a position explicitly should override relative movement
     //      or relative events before a certain timestamp should be ignored
         val cached = if (checkCache) location.checkCache() else null
@@ -93,10 +96,11 @@ class PageProvider {
         TTVService.instance.getPage(location.page)
                 .subscribeOn(Schedulers.io())
                 .observeOn(scheduler)
-                .map { handle(it, location) }
+                .map { handle(it, location, autoReload) }
                 .onErrorReturn {
+                    Log.error("Failed to get page ${location.page}: $it")
                     historyAdd(location)
-                    it.asPageEvent(location)
+                    it.asPageEvent(location, autoReload)
                 }
                 .doOnSuccess { pageEventSubject.onNext(it) }
                 .subscribe()
@@ -106,8 +110,8 @@ class PageProvider {
         set(Location(page, 0))
     }
 
-    fun reload() {
-        set(currentLocation, checkCache = false)
+    fun reload(autoReload: Boolean = false) {
+        set(currentLocation, checkCache = false, autoReload = autoReload)
     }
 
     fun back() {
@@ -172,7 +176,7 @@ class PageProvider {
         pageEventSubject.onNext(PageEvent.Loaded(cached))
     }
 
-    private fun handle(received: TTVContent, ref: Location): PageEvent {
+    private fun handle(received: TTVContent, ref: Location, autoReload: Boolean): PageEvent {
         val pages = received.pages.map { Page(it) }
         pages.forEach { cache[it.number] = CacheEntry(it) }
         val sub = pages.firstOrNull()?.getSubpage(ref.sub)
@@ -182,7 +186,7 @@ class PageProvider {
         }
 
         return when (sub) {
-            null -> PageEvent.NotFound(ref)
+            null -> PageEvent.Failed(ErrorType.NOT_FOUND, null, ref, autoReload)
             else -> PageEvent.Loaded(sub)
         }
     }
@@ -213,15 +217,13 @@ class PageProvider {
         return Duration.between(this, Instant.now())
     }
 
-    private fun Throwable.asPageEvent(location: Location): PageEvent {
+    private fun Throwable.asPageEvent(location: Location, autoReload: Boolean): PageEvent {
+        var type = ErrorType.OTHER
 
-        if (this is HttpException) {
-
-            when (code()) {
-                404 -> return PageEvent.NotFound(location)
-            }
+        if (this is HttpException && code() == 404) {
+            type = ErrorType.OTHER
         }
 
-        return PageEvent.Failed(this, location)
+        return PageEvent.Failed(type, this, location, autoReload)
     }
 }

@@ -100,7 +100,6 @@ fun main(args: Array<String>) {
                         println(it.subpage.content.replace(replacer, " "))
                     }
                     is PageEvent.Failed -> Log.error("failed to load subpage ${it.location}: ${it.error}")
-                    is PageEvent.NotFound -> Log.error("subpage not found: ${it.location}")
                 }
 
             }

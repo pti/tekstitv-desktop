@@ -22,7 +22,14 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
 
         provider.observe()
                 .observeOnEventQueue()
-                .subscribe { panel.latestEvent = it }
+                .subscribe {
+
+                    if (it is PageEvent.Failed && it.autoReload && panel.latestEvent is PageEvent.Loaded) {
+                        // Failed to automatically refresh the page -> keep on displaying the currently loaded page
+                    } else {
+                        panel.latestEvent = it
+                    }
+                }
 
         disposables += frame.observeKeyEvents()
                 .filter { it.id == KeyEvent.KEY_PRESSED }
@@ -100,7 +107,7 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
 
         autoRefresher = provider.observe()
                 .debounce(1, TimeUnit.MINUTES)
-                .subscribe { provider.reload() }
+                .subscribe { provider.reload(autoReload = true) }
     }
 
     private fun stopAutoRefresh() {
