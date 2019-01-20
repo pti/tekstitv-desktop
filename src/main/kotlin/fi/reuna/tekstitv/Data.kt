@@ -21,7 +21,7 @@ enum class ErrorType {
 }
 
 sealed class PageEvent {
-    data class Loaded(val subpage: Subpage) : PageEvent()
+    data class Loaded(val subpage: Subpage, val cached: Boolean = false) : PageEvent()
     data class Failed(val type: ErrorType, val error: Throwable?, val location: Location, val autoReload: Boolean) : PageEvent()
 }
 

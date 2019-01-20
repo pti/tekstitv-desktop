@@ -102,7 +102,12 @@ class PageProvider {
                     historyAdd(location)
                     it.asPageEvent(location, autoReload)
                 }
-                .doOnSuccess { pageEventSubject.onNext(it) }
+                .doOnSuccess {
+                    // Ignore the auto reload response if current location has changed.
+                    if (!autoReload || it !is PageEvent.Loaded || it.subpage.location == currentLocation) {
+                        pageEventSubject.onNext(it)
+                    }
+                }
                 .subscribe()
     }
 
@@ -165,7 +170,7 @@ class PageProvider {
             currentLocation.withSub(newSubpage).fromCache()?.let {
                 history.pop()
                 history.push(it.location)
-                pageEventSubject.onNext(PageEvent.Loaded(it))
+                pageEventSubject.onNext(PageEvent.Loaded(it, cached = true))
             }
         }
     }
@@ -173,7 +178,7 @@ class PageProvider {
     private fun handleCacheHit(cached: Subpage) {
         Log.debug("cached ${cached.location.page}")
         historyAdd(cached.location)
-        pageEventSubject.onNext(PageEvent.Loaded(cached))
+        pageEventSubject.onNext(PageEvent.Loaded(cached, cached = true))
     }
 
     private fun handle(received: TTVContent, ref: Location, autoReload: Boolean): PageEvent {
@@ -181,7 +186,7 @@ class PageProvider {
         pages.forEach { cache[it.number] = CacheEntry(it) }
         val sub = pages.firstOrNull()?.getSubpage(ref.sub)
 
-        if (sub != null) {
+        if (!autoReload && sub != null) {
             historyAdd(sub.location)
         }
 
