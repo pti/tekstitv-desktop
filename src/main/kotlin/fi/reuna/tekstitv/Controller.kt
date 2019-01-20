@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
-class Controller(private val panel: SubpagePanel, frame: JFrame) {
+class Controller(panel: SubpagePanel, frame: JFrame) {
 
     private val provider = PageProvider()
     private val digitBuffer = DigitBuffer()
@@ -19,6 +19,7 @@ class Controller(private val panel: SubpagePanel, frame: JFrame) {
         Log.debug("begin")
         provider.set(100) // TODO initial page defined in config
         Log.debug("set initial page")
+
         provider.observe()
                 .observeOnEventQueue()
                 .subscribe { panel.latestEvent = it }

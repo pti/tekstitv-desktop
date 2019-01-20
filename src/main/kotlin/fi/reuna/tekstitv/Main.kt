@@ -5,36 +5,30 @@ import java.awt.EventQueue
 import java.awt.event.WindowEvent
 import java.util.prefs.Preferences
 import javax.swing.JFrame
-import kotlin.concurrent.thread
-
-private var controller: Controller? = null
 
 private const val PREF_WIN_X = "win_x"
 private const val PREF_WIN_Y = "win_y"
 private const val PREF_WIN_W = "win_w"
 private const val PREF_WIN_H = "win_h"
 
-private fun createUI() {
-    val prefs = Preferences.userNodeForPackage(Controller::class.java)
-    val frame = JFrame("TekstiTV")
-    frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-    frame.background = Color.BLACK
+class Main {
 
-    frame.setSize(prefs.getInt(PREF_WIN_W, 500), prefs.getInt(PREF_WIN_H, 600))
+    fun createUI() {
+        val prefs = Preferences.userNodeForPackage(Controller::class.java)
+        val frame = JFrame("Teksti-TV")
+        frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
+        frame.background = Color.BLACK
 
-    if (prefs.get(PREF_WIN_X, null) != null && prefs.get(PREF_WIN_W, null) != null) {
-        frame.setLocation(prefs.getInt(PREF_WIN_X, 0), prefs.getInt(PREF_WIN_Y, 0))
-    }
+        if (prefs.get(PREF_WIN_X, null) != null && prefs.get(PREF_WIN_W, null) != null) {
+            frame.setLocation(prefs.getInt(PREF_WIN_X, 0), prefs.getInt(PREF_WIN_Y, 0))
+        }
 
-    frame.isVisible = true
-    Log.debug("done")
+        frame.setSize(prefs.getInt(PREF_WIN_W, 500), prefs.getInt(PREF_WIN_H, 600))
 
-    EventQueue.invokeLater {
         val panel = SubpagePanel()
         frame.contentPane.add(panel)
-
-        controller = Controller(panel, frame)
-        Log.debug("created ctrl")
+        frame.isVisible = true
+        Log.debug("done")
 
         frame.observeWindowEvents()
                 .filter { it.id == WindowEvent.WINDOW_CLOSING }
@@ -45,10 +39,14 @@ private fun createUI() {
                     prefs.putInt(PREF_WIN_H, frame.height)
                     prefs.flush()
                 }
+
+        Log.debug("begin create controller")
+        Controller(panel, frame)
+        Log.debug("done creating controller")
     }
 }
 
 fun main(args: Array<String>) {
     Log.debug("begin")
-    EventQueue.invokeLater { createUI() }
+    EventQueue.invokeLater { Main().createUI() }
 }

@@ -91,6 +91,7 @@ class PageProvider {
         }
 
         TTVService.instance.getPage(location.page)
+                .subscribeOn(Schedulers.io())
                 .observeOn(scheduler)
                 .map { handle(it, location) }
                 .onErrorReturn {

@@ -3,8 +3,15 @@ package fi.reuna.tekstitv
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
+private enum class LogTimeMode {
+    DELTA,
+    ABSOLUTE
+}
+
 class Log {
 
+    private val mode = LogTimeMode.DELTA
+    private val t0 = System.nanoTime()
     private val formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
     private fun debug(message: String) {
@@ -25,8 +32,17 @@ class Log {
         val se = stackTrace[4]
         val className = se.className
         val simpleName = className.substringAfterLast('.')
-        val timestamp = LocalTime.now().format(formatter)
-        println("$timestamp <${level.levelName}> [${thread.name}] $simpleName.${se.methodName}:${se.lineNumber}  $message")
+
+        when (mode) {
+            LogTimeMode.DELTA -> {
+                val elapsed = (System.nanoTime() - t0) / 1000000
+                println("$elapsed <${level.levelName}> [${thread.name}] $simpleName.${se.methodName}:${se.lineNumber}  $message")
+            }
+            LogTimeMode.ABSOLUTE -> {
+                val timestamp = LocalTime.now().format(formatter)
+                println("$timestamp <${level.levelName}> [${thread.name}] $simpleName.${se.methodName}:${se.lineNumber}  $message")
+            }
+        }
     }
 
     companion object {
