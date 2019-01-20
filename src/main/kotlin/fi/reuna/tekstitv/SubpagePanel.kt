@@ -16,25 +16,9 @@ class SubpagePanel : JPanel() {
         background = Color.BLACK
     }
 
-    var subpage: Subpage? = null
+    var latestEvent: PageEvent? = null
         set(value) {
             field = value
-
-            if (value != null) {
-                errorMessage = null
-            }
-
-            repaint()
-        }
-
-    var errorMessage: String? = null
-        set(value) {
-            field = value
-
-            if (value != null) {
-                subpage = null
-            }
-
             repaint()
         }
 
@@ -72,29 +56,38 @@ class SubpagePanel : JPanel() {
         }
     }
 
-    private fun paintErrorMessage(g: Graphics2D, spec: PaintSpec, errorMessage: String) {
+    private fun paintErrorMessage(g: Graphics2D, spec: PaintSpec, event: PageEvent) {
+
+        val errorMessage = when (event) {
+            is PageEvent.NotFound -> "Page ${event.location?.page ?: -1} not found"
+            is PageEvent.Failed -> "Error loading page ${event.location?.page ?: -1}"
+            else -> return
+        }
+
         val textWidth = SwingUtilities.computeStringWidth(spec.fontMetrics, errorMessage)
         val textHeight = spec.fontMetrics.height
+        g.font = spec.font
         g.color = spec.foreground
         g.drawString(errorMessage, (width - textWidth) / 2, (height - textHeight) / 2)
     }
 
     override fun paintComponent(g: Graphics?) {
+        Log.debug("")
         super.paintComponent(g)
 
         val g2d = g as Graphics2D
-        val subpage = subpage
-        val errorMessage = errorMessage
+        val event = latestEvent
         val spec = checkSpec()
 
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
 
-        if (errorMessage != null) {
-            paintErrorMessage(g2d, spec, errorMessage)
-        }
-
-        if (subpage != null) {
-            paintSubpage(g2d, spec, subpage)
+        when (event) {
+            is PageEvent.Loaded -> {
+                paintSubpage(g2d, spec, event.subpage)
+            }
+            is PageEvent.Failed, is PageEvent.NotFound -> {
+                paintErrorMessage(g2d, spec, event)
+            }
         }
     }
 }

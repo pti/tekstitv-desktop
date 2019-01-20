@@ -16,29 +16,12 @@ class Controller(private val panel: SubpagePanel, frame: JFrame) {
     private var autoRefresher: Disposable? = null
 
     init {
-        provider.observe()
-                .observeOnEventQueue()
-                .subscribe {
-
-                    when (it) {
-                        is PageEvent.Loaded -> {
-                            Log.debug("got ${it.subpage.location}")
-                            panel.subpage = it.subpage
-                        }
-                        is PageEvent.Failed -> {
-                            Log.error("failed to load page ${it.location}: ${it.error}")
-                            panel.errorMessage = "failed to load page ${it.location}: ${it.error}"
-                        }
-                        is PageEvent.NotFound -> {
-                            Log.error("page not found: ${it.location}")
-                            panel.errorMessage = "page not found: ${it.location}"
-                        }
-                    }
-                }
-
-        Log.debug("provider observer set up")
+        Log.debug("begin")
         provider.set(100) // TODO initial page defined in config
         Log.debug("set initial page")
+        provider.observe()
+                .observeOnEventQueue()
+                .subscribe { panel.latestEvent = it }
 
         disposables += frame.observeKeyEvents()
                 .filter { it.id == KeyEvent.KEY_PRESSED }

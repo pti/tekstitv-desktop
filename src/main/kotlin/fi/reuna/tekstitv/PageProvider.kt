@@ -5,6 +5,7 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
 import io.reactivex.subjects.PublishSubject
+import retrofit2.HttpException
 import java.time.Duration
 import java.time.Instant
 import java.util.*
@@ -25,8 +26,6 @@ class PageProvider {
     private val relativeSubject = PublishSubject.create<Direction>()
     private val scheduler = Schedulers.single()
     private val disposables = CompositeDisposable()
-
-    // TODO thread safety
 
     val currentLocation: Location
         get() = history.lastOrNull() ?: Location(100, 0)
@@ -62,7 +61,7 @@ class PageProvider {
                         // This is useful in case the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
                         .onErrorResumeNext { ttv.getPage(relativeTo.page + direction.delta) }
                         .map { handle(it, relativeTo.withSub(0)) }
-                        .onErrorReturn { PageEvent.Failed(it, relativeTo) }
+                        .onErrorReturn { it.asPageEvent(relativeTo) }
                         .doOnSuccess { pageEventSubject.onNext(it) }
                         .subscribe()
                 }
@@ -96,7 +95,7 @@ class PageProvider {
                 .map { handle(it, location) }
                 .onErrorReturn {
                     historyAdd(location)
-                    PageEvent.Failed(it, location)
+                    it.asPageEvent(location)
                 }
                 .doOnSuccess { pageEventSubject.onNext(it) }
                 .subscribe()
@@ -177,7 +176,7 @@ class PageProvider {
         pages.forEach { cache[it.number] = CacheEntry(it) }
         val sub = pages.firstOrNull()?.getSubpage(ref.sub)
 
-        if (sub != null && (history.isEmpty() || history.peek().page != sub.location.page)) {
+        if (sub != null) {
             historyAdd(sub.location)
         }
 
@@ -189,7 +188,7 @@ class PageProvider {
 
     private fun historyAdd(location: Location) {
 
-        if (history.isEmpty() || history.peek() != location) {
+        if (history.isEmpty() || history.peek().page != location.page) {
             history.push(location)
         }
     }
@@ -211,5 +210,17 @@ class PageProvider {
 
     private fun Instant.since(): Duration {
         return Duration.between(this, Instant.now())
+    }
+
+    private fun Throwable.asPageEvent(location: Location): PageEvent {
+
+        if (this is HttpException) {
+
+            when (code()) {
+                404 -> return PageEvent.NotFound(location)
+            }
+        }
+
+        return PageEvent.Failed(this, location)
     }
 }
