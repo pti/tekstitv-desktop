@@ -2,7 +2,7 @@ package fi.reuna.tekstitv
 
 import java.awt.Color
 import java.awt.Graphics2D
-import java.util.ArrayList
+import java.util.*
 import java.util.regex.Pattern
 
 /** Character code point offset for block symbols. */
@@ -16,18 +16,20 @@ enum class GraphicsMode(val range: IntRange) {
     SEPARATED(0xE240..0xE27F)
 }
 
-class PagePiece(val foreground: Color,
-                val background: Color?,
-                val mode: GraphicsMode?,
-                val content: String?)
+class PagePiece(var foreground: Color,
+                var background: Color?,
+                var mode: GraphicsMode?,
+                var content: String,
+                var lineEnd: Boolean = false,
+                var doubleHeight: Boolean = false)
 {
-    var lineEnd = false
-    var doubleHeight = false
-    val isBlank = content == null || content.isBlank()
+    fun prepend(content: String) {
+        this.content = content + this.content
+    }
 
     fun paint(g: Graphics2D, spec: PaintSpec, x: Int, y: Int): Int {
 
-        if (content == null) {
+        if (content.isEmpty()) {
             return 0
         }
 
@@ -140,13 +142,40 @@ private fun lineToPieces(line: String): List<PagePiece> {
     var heldGraphicsChar = defaultSpaceChar
     var hold = false
 
-    fun startNewPiece() {
+    fun pieceBreak() {
 
-        if (!content.isEmpty()) {
-            val str = content.toString()
-            pieces.add(PagePiece(fg, bg, graphicsMode, graphicsMode?.convertChars(str) ?: str))
-            content.delete(0, content.length)
+        if (content.isEmpty()) {
+            return
         }
+
+        val last = pieces.lastOrNull()
+        var startNewPiece = (last == null)
+
+        if (last != null) {
+            // Check if a new piece is actually needed or can the last one just be complemented => fewer pieces.
+            val sameBg = last.background == bg
+
+            if (last.content.isBlank() && sameBg) {
+                last.foreground = fg
+                last.mode = graphicsMode
+                last.content += content.convert(graphicsMode)
+
+            } else if (sameBg && content.isBlank()) {
+                last.content += content.toString()
+
+            } else if (sameBg && last.mode == graphicsMode && last.foreground == fg) {
+                last.content += content.convert(graphicsMode)
+
+            } else {
+                startNewPiece = true
+            }
+        }
+
+        if (startNewPiece) {
+            pieces.add(PagePiece(fg, bg, graphicsMode, content.convert(graphicsMode)))
+        }
+
+        content.delete(0, content.length)
     }
 
     fun appendSpace() { content.append(if (hold) heldGraphicsChar else defaultSpaceChar) }
@@ -193,25 +222,25 @@ private fun lineToPieces(line: String): List<PagePiece> {
 
             } else if (attr == "nbgr") {
                 // 0x1D New Background. Immediate change.
-                startNewPiece()
+                pieceBreak()
                 appendSpace()
                 bg = fg
 
             } else if (attr == "bbgr") {
                 // 0x1C Black Background. Immediate change.
-                startNewPiece()
+                pieceBreak()
                 appendSpace()
                 bg = null
 
             } else if (attr == "sgra") {
                 // 0x1A Separated Mosaic Graphics.
-                startNewPiece()
+                pieceBreak()
                 graphicsMode = GraphicsMode.SEPARATED
                 appendSpace()
 
             } else if (attr == "cgra") {
                 // 0x19 Contiguous Mosaic Graphics
-                startNewPiece()
+                pieceBreak()
                 graphicsMode = GraphicsMode.CONTIGUOUS
                 appendSpace()
 
@@ -231,36 +260,36 @@ private fun lineToPieces(line: String): List<PagePiece> {
                 // This interpretation also 'enables' ignoring the normal size attribute (nhei).
                 doubleHeight = true
                 appendSpace()
-                startNewPiece()
+                pieceBreak()
 
             } else if (first == 'g') {
                 // 0x11-0x17 Mosaic Colour Codes
                 appendSpace()
-                startNewPiece()
+                pieceBreak()
                 if (graphicsMode == null) graphicsMode = GraphicsMode.CONTIGUOUS
                 fg = colorForId(m.group(3)) ?: defaultFg
 
             } else if (first == 't') {
                 // 0x01-0x07 Alpha Colour Codes
                 appendSpace()
-                startNewPiece()
+                pieceBreak()
                 graphicsMode = null
                 resetHeldGraphicsChar()
                 fg = colorForId(m.group(3)) ?: defaultFg
 
             } else {
                 appendSpace()
-                startNewPiece()
+                pieceBreak()
             }
 
         } else {
             content.append(str)
             updateHeldGraphicsChar()
-            startNewPiece()
+            pieceBreak()
         }
     }
 
-    startNewPiece() // In case line ended with spacing attribute tags.
+    pieceBreak() // In case line ended with spacing attribute tags.
     pieces.lastOrNull()?.apply { lineEnd = true }
     pieces.forEach { it.doubleHeight = doubleHeight }
     return pieces
@@ -304,12 +333,14 @@ private fun colorForId(colorId: String): Color? {
     }
 }
 
-private fun GraphicsMode.convertChars(str: String): String {
-    val converted = StringBuilder(str.length)
-    var c: Int
+private fun StringBuilder.convert(mode: GraphicsMode?): String {
+    return mode?.convertChars(this) ?: toString()
+}
 
-    for (ch in str.toCharArray()) {
-        c = ch.toInt()
+private fun GraphicsMode.convertChars(sb: StringBuilder): String {
+    val converted = StringBuilder(sb.length)
+
+    for (c in sb.chars()) {
 
         if (c in 64..95) {
 
@@ -319,20 +350,21 @@ private fun GraphicsMode.convertChars(str: String): String {
                 93 -> '>'
                 94 -> '^'
                 95 -> '#'
-                else -> ch // 64-90 are a direct match with ASCII characters (@A-Z).
+                else -> c.toChar() // 64-90 are a direct match with ASCII characters (@A-Z).
             }
 
             converted.append(chr)
 
         } else if (c < 128) {
+            var v = c
 
-            if (c > 95) {
-                c -= 0x20
+            if (v > 95) {
+                v -= 0x20
             }
 
-            c -= 0x20
-            c += range.start
-            converted.append(c.toChar())
+            v -= 0x20
+            v += range.start
+            converted.append(v.toChar())
 
         } else if (c in BLOCK_SYMBOL_RANGE) {
             converted.append(c.toChar())
