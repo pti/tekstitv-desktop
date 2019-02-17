@@ -6,6 +6,7 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import kotlin.math.ceil
 
 
 class SubpagePanel : JPanel() {
@@ -35,27 +36,15 @@ class SubpagePanel : JPanel() {
         val x0 = (width - 2 * spec.margin - spec.contentWidth) / 2 + spec.margin
         var x = x0
         var y = (height - 2 * spec.margin - spec.contentHeight) / 2 + spec.margin
-        val ignoreLineAfterDoubleHeightOne = true
 
         g.font = spec.font
-        var lastRowWasDoubleHeight = false
 
         for (piece in subpage.pieces) {
-
-            // Sometimes double height rows are followed by lines with some content that isn't visible in the web version.
-            // Perhaps there is some other way of not displaying that content, but for now just ignore the following row
-            // (at least currently this results in correct looking pages).
-            if (!lastRowWasDoubleHeight || !ignoreLineAfterDoubleHeightOne) {
-                x += piece.paint(g, spec, x, y)
-            }
+            x += piece.paint(g, spec, x, y)
 
             if (piece.lineEnd) {
-                y += spec.lineHeight
+                y += ceil(spec.lineHeight * piece.heightMultiplier(spec)).toInt()
                 x = x0
-                // If the last line was a double height one, then this line was ignored (if ignoreLineAfterDoubleHeightOne)
-                // and nothing was drawn so effectively this line is never a double height one (even if it contained
-                // double height content - sometimes the line following a dhei line can contain dhei tags too).
-                lastRowWasDoubleHeight = piece.doubleHeight && (!lastRowWasDoubleHeight || !ignoreLineAfterDoubleHeightOne)
             }
         }
     }

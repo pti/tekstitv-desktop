@@ -4,6 +4,7 @@ import java.awt.Color
 import java.awt.Graphics2D
 import java.util.*
 import java.util.regex.Pattern
+import kotlin.math.ceil
 
 /** Character code point offset for block symbols. */
 const val BLOCK_SYMBOL_OFFSET_START = 0xE200
@@ -27,18 +28,22 @@ class PagePiece(var foreground: Color,
         this.content = content + this.content
     }
 
+    fun heightMultiplier(spec: PaintSpec): Double {
+        return if (doubleHeight) spec.doubleHeightMultiplier else 1.0
+    }
+
     fun paint(g: Graphics2D, spec: PaintSpec, x: Int, y: Int): Int {
 
         if (content.isEmpty()) {
             return 0
         }
 
-        val multiplier = if (doubleHeight) 2 else 1
+        val multiplier = heightMultiplier(spec)
         val contentWidth = spec.charWidth * content.length
 
         if (background != null) {
             g.color = background
-            g.fillRect(x, y, contentWidth, spec.charHeight * multiplier)
+            g.fillRect(x, y, contentWidth, ceil(spec.charHeight * multiplier).toInt())
         }
 
         g.color = foreground
@@ -111,11 +116,24 @@ class PagePiece(var foreground: Color,
  * Double height mode isn't supported.
  */
 fun pageContentToPieces(content: String): List<PagePiece> {
+    // Sometimes double height rows are followed by lines with some content that isn't visible in the web version.
+    // Perhaps there is some other way of not displaying that content, but for now just ignore the following row
+    // (at least currently this results in correct looking pages). These lines can even contain dhei tags.
+    val ignoreLineAfterDoubleHeightOne = true
+
     val ret = ArrayList<PagePiece>()
     val lines = content.split("\n").dropLastWhile { it.isEmpty() } // Drop the last empty string produced by split().
+    var lastRowWasDoubleHeight = false
 
     for (line in lines) {
-        ret += lineToPieces(line)
+
+        if (ignoreLineAfterDoubleHeightOne && lastRowWasDoubleHeight) {
+            lastRowWasDoubleHeight = false
+        } else {
+            val pieces = lineToPieces(line)
+            ret += pieces
+            lastRowWasDoubleHeight = pieces.lastOrNull()?.doubleHeight ?: false
+        }
     }
 
     return ret

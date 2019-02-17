@@ -17,6 +17,7 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val contentWidth: Int
     val contentHeight: Int
     val margin = 10 // TODO from config
+    val doubleHeightMultiplier = 2.0 // Defined in case one wants to disable use of double height lines at some point.
 
     init {
         font = fontForSize(g, "Fira Mono", width - 2 * margin, height - 2 * margin) // TODO from config
