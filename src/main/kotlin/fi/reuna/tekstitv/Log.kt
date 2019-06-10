@@ -10,6 +10,7 @@ private enum class LogTimeMode {
 
 class Log {
 
+    private val level = LogLevel.ERROR
     private val mode = LogTimeMode.DELTA
     private val t0 = System.nanoTime()
     private val formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
@@ -27,6 +28,11 @@ class Log {
     }
 
     private fun log(level: LogLevel, message: String) {
+
+        if (level.value < this.level.value) {
+            return
+        }
+
         val thread = Thread.currentThread()
         val stackTrace = thread.stackTrace
         val se = stackTrace[4]
@@ -63,8 +69,8 @@ class Log {
     }
 }
 
-enum class LogLevel(val levelName: String) {
-    DEBUG("DEBG"),
-    INFO("INFO"),
-    ERROR("ERROR")
+enum class LogLevel(val levelName: String, val value: Int) {
+    DEBUG("DEBG", 10),
+    INFO("INFO", 20),
+    ERROR("ERROR", 40)
 }
