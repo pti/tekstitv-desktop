@@ -3,7 +3,6 @@ package fi.reuna.tekstitv
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
-import io.reactivex.internal.disposables.ArrayCompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import java.awt.Component
 import java.awt.EventQueue
