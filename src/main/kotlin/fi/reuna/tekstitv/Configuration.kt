@@ -4,6 +4,7 @@ import com.squareup.moshi.Moshi
 import org.hjson.JsonValue
 import java.nio.file.Files
 import java.nio.file.Paths
+import com.squareup.moshi.JsonClass
 
 object ConfigurationProvider {
 
@@ -21,7 +22,8 @@ object ConfigurationProvider {
     }
 }
 
-class Configuration(
+@JsonClass(generateAdapter = true)
+data class Configuration(
         val baseUrl: String,
         val apiKey: String
 )
