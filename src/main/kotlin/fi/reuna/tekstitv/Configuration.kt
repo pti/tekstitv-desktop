@@ -13,7 +13,7 @@ object ConfigurationProvider {
     val cfg: Configuration
 
     init {
-        val path = Paths.get(System.getProperty("user.home"), ".tekstitv", "configuration.hjson")
+        val path = System.getProperty("cfg")?.let { Paths.get(it) } ?: Paths.get(System.getProperty("user.home"), ".tekstitv", "configuration.hjson")
 
         cfg = Files.newBufferedReader(path).use { reader ->
             val input = JsonValue.readHjson(reader).toString()
@@ -33,5 +33,7 @@ data class Configuration(
         val apiKey: String,
         val startPage: Int = 100,
         val backgroundColor: Color = Color.BLACK,
-        val autoRefreshInterval: Duration = Duration.ofSeconds(60)
+        val autoRefreshInterval: Duration = Duration.ofSeconds(60),
+        val margin: Int = 10,
+        val fontFamily: String = "Fira Mono"
 )

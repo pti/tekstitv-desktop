@@ -15,11 +15,12 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val foreground = Color.WHITE!!
     val contentWidth: Int
     val contentHeight: Int
-    val margin = 10 // TODO from config
-    val doubleHeightMultiplier = 2.0 // Defined in case one wants to disable use of double height lines at some point.
+    val margin: Int
 
     init {
-        font = fontForSize(g, "Fira Mono", width - 2 * margin, height - 2 * margin) // TODO from config
+        val cfg = ConfigurationProvider.cfg
+        margin = cfg.margin
+        font = fontForSize(g, cfg.fontFamily, width - 2 * margin, height - 2 * margin)
         fontMetrics = g.getFontMetrics(font)
         charWidth = fontMetrics.charWidth('0')
         charHeight = fontMetrics.height
