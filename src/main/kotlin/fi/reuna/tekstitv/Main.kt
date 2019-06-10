@@ -46,7 +46,7 @@ class Main {
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     Log.debug("begin")
     EventQueue.invokeLater { Main().createUI() }
 }
