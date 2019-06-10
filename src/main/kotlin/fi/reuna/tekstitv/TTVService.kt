@@ -1,5 +1,6 @@
 package fi.reuna.tekstitv
 
+import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
 import io.reactivex.Single
@@ -74,6 +75,7 @@ interface TTVService {
     }
 }
 
+@JsonClass(generateAdapter = true)
 data class TTVContent(val status: Int,
                  val message: String?,
                  val timestamp: Date,
@@ -81,6 +83,8 @@ data class TTVContent(val status: Int,
                  val version: String,
                  val pages: List<TTVPage>)
 
+@JsonClass(generateAdapter = true)
 data class TTVPage(val number: Int, val subpages: List<TTVSubpage>)
 
+@JsonClass(generateAdapter = true)
 data class TTVSubpage(val number: Int, val timestamp: Date, val content: String)
