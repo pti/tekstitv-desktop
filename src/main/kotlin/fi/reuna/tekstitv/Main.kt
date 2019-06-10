@@ -1,6 +1,5 @@
 package fi.reuna.tekstitv
 
-import java.awt.Color
 import java.awt.EventQueue
 import java.awt.event.WindowEvent
 import java.util.prefs.Preferences
@@ -17,7 +16,7 @@ class Main {
         val prefs = Preferences.userNodeForPackage(Controller::class.java)
         val frame = JFrame("Teksti-TV")
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-        frame.background = Color.BLACK
+        frame.background = ConfigurationProvider.cfg.backgroundColor
 
         if (prefs.get(PREF_WIN_X, null) != null && prefs.get(PREF_WIN_W, null) != null) {
             frame.setLocation(prefs.getInt(PREF_WIN_X, 0), prefs.getInt(PREF_WIN_Y, 0))
@@ -26,6 +25,7 @@ class Main {
         frame.setSize(prefs.getInt(PREF_WIN_W, 500), prefs.getInt(PREF_WIN_H, 600))
 
         val panel = SubpagePanel()
+        panel.background = frame.background
         frame.contentPane.add(panel)
         frame.isVisible = true
         Log.debug("done")

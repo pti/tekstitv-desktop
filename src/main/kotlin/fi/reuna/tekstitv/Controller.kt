@@ -4,6 +4,7 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
 import java.awt.event.KeyEvent
 import java.awt.event.WindowEvent
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
@@ -14,10 +15,13 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
     private val digitBuffer = DigitBuffer()
     private val disposables = CompositeDisposable()
     private var autoRefresher: Disposable? = null
+    private val autoRefreshInterval: Duration
 
     init {
         Log.debug("begin")
-        provider.set(100) // TODO initial page defined in config
+        val cfg = ConfigurationProvider.cfg
+        autoRefreshInterval = cfg.autoRefreshInterval
+        provider.set(cfg.startPage)
         Log.debug("set initial page")
 
         provider.observe()
@@ -106,7 +110,7 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
         if (autoRefresher != null) return
 
         autoRefresher = provider.observe()
-                .debounce(1, TimeUnit.MINUTES)
+                .debounce(autoRefreshInterval.seconds, TimeUnit.SECONDS)
                 .subscribe { provider.reload(autoReload = true) }
     }
 

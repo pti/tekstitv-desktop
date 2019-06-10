@@ -12,7 +12,6 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val charHeight: Int
     val lineHeight: Int
     val fontMetrics: FontMetrics
-    val background = Color.BLACK!!
     val foreground = Color.WHITE!!
     val contentWidth: Int
     val contentHeight: Int

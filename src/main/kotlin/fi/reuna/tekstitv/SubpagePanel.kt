@@ -1,6 +1,5 @@
 package fi.reuna.tekstitv
 
-import java.awt.Color
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.RenderingHints
@@ -8,14 +7,9 @@ import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.math.ceil
 
-
 class SubpagePanel : JPanel() {
 
     private var spec: PaintSpec? = null
-
-    init {
-        background = Color.BLACK
-    }
 
     var latestEvent: PageEvent? = null
         set(value) {
