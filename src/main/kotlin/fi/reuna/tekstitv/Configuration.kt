@@ -2,6 +2,8 @@ package fi.reuna.tekstitv
 
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
+import fi.reuna.tekstitv.adapters.ColorAdapter
+import fi.reuna.tekstitv.adapters.DurationAdapter
 import org.hjson.JsonValue
 import java.awt.Color
 import java.nio.file.Files

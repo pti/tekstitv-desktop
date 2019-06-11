@@ -1,4 +1,4 @@
-package fi.reuna.tekstitv
+package fi.reuna.tekstitv.adapters
 
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.JsonReader
