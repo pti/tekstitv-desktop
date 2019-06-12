@@ -19,8 +19,11 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
 
     init {
         Log.debug("begin")
+
         val cfg = ConfigurationProvider.cfg
         autoRefreshInterval = cfg.autoRefreshInterval
+        Log.debug("got configuration")
+
         provider.set(cfg.startPage)
         Log.debug("set initial page")
 
