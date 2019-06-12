@@ -23,8 +23,9 @@ class Log {
         log(LogLevel.INFO, message)
     }
 
-    private fun error(message: String) {
+    private fun error(message: String, t: Throwable? = null) {
         log(LogLevel.ERROR, message)
+        t?.printStackTrace()
     }
 
     private fun log(level: LogLevel, message: String) {
@@ -35,7 +36,7 @@ class Log {
 
         val thread = Thread.currentThread()
         val stackTrace = thread.stackTrace
-        val se = stackTrace[4]
+        val se = stackTrace[5] // First elements are Log class and companion object specific ones. #5 is the one that made the log call.
         val className = se.className
         val simpleName = className.substringAfterLast('.')
 
@@ -56,15 +57,15 @@ class Log {
         private val instance = Log()
 
         fun debug(message: String) {
-            instance.log(LogLevel.DEBUG, message)
+            instance.debug(message)
         }
 
         fun info(message: String) {
-            instance.log(LogLevel.INFO, message)
+            instance.info(message)
         }
 
-        fun error(message: String) {
-            instance.log(LogLevel.ERROR, message)
+        fun error(message: String, t: Throwable? = null) {
+            instance.error(message, t)
         }
     }
 }
