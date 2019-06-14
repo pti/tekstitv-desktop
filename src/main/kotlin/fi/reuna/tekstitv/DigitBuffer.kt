@@ -36,7 +36,6 @@ class DigitBuffer {
     }
 
     private fun startTimer() {
-        // TODO some coroutine stuff instead of a timer?
         resetTask = resetTimer.schedule(3000) { clear() }
     }
 

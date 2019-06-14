@@ -15,7 +15,7 @@ object ConfigurationProvider {
     val cfg: Configuration
 
     init {
-        val path = System.getProperty("cfg")?.let { Paths.get(it) } ?: Paths.get(System.getProperty("user.home"), ".tekstitv", "configuration.hjson")
+        val path = System.getProperty("tekstitv.cfg")?.let { Paths.get(it) } ?: Paths.get(System.getProperty("user.home"), ".tekstitv", "configuration.hjson")
 
         cfg = Files.newBufferedReader(path).use { reader ->
             val input = JsonValue.readHjson(reader).toString()

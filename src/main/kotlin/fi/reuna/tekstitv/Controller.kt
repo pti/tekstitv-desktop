@@ -24,6 +24,9 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
         autoRefreshInterval = cfg.autoRefreshInterval
         Log.debug("got configuration")
 
+        NavigationHistory.instance.load()
+        Log.debug("navigation history loaded")
+
         provider.set(cfg.startPage)
         Log.debug("set initial page")
 
@@ -83,9 +86,19 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
                         provider.togglePrevious()
 
                     } else if (char.isDigit()) {
-                        digitBuffer.handleInput(char)?.let { provider.set(it) }
+                        digitBuffer.handleInput(char)?.let { setPage(it) }
+
+                    } else {
+                        // TODO
+                        when (char) {
+                            'r' -> setPage(100)
+                            'g' -> setPage(235)
+                            'y' -> setPage(300)
+                            'b' -> setPage(400)
+                        }
+
+                        digitBuffer.inputEnded()
                     }
-                    // TODO handle r g y b -> shortcuts to "favorites" -- tee joku favmanager joka käsittelee valinnan sivukohtaisesti
                 }
 
         startAutoRefresh()
@@ -100,6 +113,16 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
                         }
                     }
                 }
+    }
+
+    private fun setPage(number: Int) {
+        val current = provider.currentLocation.page
+
+        if (current != number) {
+            NavigationHistory.instance.add(current, number)
+        }
+
+        provider.set(number)
     }
 
     fun stop() {
