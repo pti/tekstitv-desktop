@@ -1,5 +1,6 @@
 package fi.reuna.tekstitv
 
+import fi.reuna.tekstitv.ui.PaintSpec
 import java.awt.*
 import java.awt.geom.AffineTransform
 import javax.swing.JFrame

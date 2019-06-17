@@ -1,5 +1,6 @@
 package fi.reuna.tekstitv
 
+import fi.reuna.tekstitv.ui.PaintSpec
 import java.awt.Color
 import java.awt.Graphics2D
 import java.util.*

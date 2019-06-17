@@ -1,5 +1,6 @@
-package fi.reuna.tekstitv
+package fi.reuna.tekstitv.ui
 
+import fi.reuna.tekstitv.ConfigurationProvider
 import java.awt.Color
 import java.awt.Font
 import java.awt.FontMetrics

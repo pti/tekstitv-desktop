@@ -1,4 +1,4 @@
-package fi.reuna.tekstitv
+package fi.reuna.tekstitv.ui
 
 import io.reactivex.Observable
 import io.reactivex.disposables.CompositeDisposable
