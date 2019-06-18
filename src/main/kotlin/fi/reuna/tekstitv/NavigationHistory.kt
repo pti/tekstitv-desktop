@@ -55,7 +55,7 @@ class NavigationHistory {
     /**
      * Return pages most visited from page [source].
      */
-    fun topHits(source: Int, count: Int = 4, minCount: Int? = 2, minOccurred: Instant? = Instant.now().minus(7, ChronoUnit.DAYS)): List<Int> {
+    fun topHits(source: Int, count: Int = 4, minCount: Int? = 3, minOccurred: Instant? = Instant.now().minus(7, ChronoUnit.DAYS)): List<Int> {
         val all = hitsByPage[source] ?: emptyList<PageHit>()
         return all.asSequence()
                 .filter { minOccurred == null || it.occurred.isAfter(minOccurred) }

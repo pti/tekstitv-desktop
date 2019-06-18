@@ -90,12 +90,10 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
                         digitBuffer.handleInput(char)?.let { setPage(it) }
 
                     } else {
-                        // TODO
-                        when (char) {
-                            'r' -> setPage(100)
-                            'g' -> setPage(235)
-                            'y' -> setPage(300)
-                            'b' -> setPage(400)
+                        var page = panel.shortcuts.getShortcut(char)
+
+                        if (page != null) {
+                            setPage(page)
                         }
 
                         digitBuffer.inputEnded()

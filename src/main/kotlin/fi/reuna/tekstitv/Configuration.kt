@@ -37,5 +37,9 @@ data class Configuration(
         val backgroundColor: Color = Color.BLACK,
         val autoRefreshInterval: Duration = Duration.ofSeconds(60),
         val margin: Int = 10,
-        val fontFamily: String = "Fira Mono"
+        val fontFamily: String = "Fira Mono",
+        val shortcutFontFamily: String = "Fira Sans",
+        val shortcutFontSizer: Double = 0.34,
+        val shortcutBackground: Int = 0x1f1f1f,
+        val shortcutForeground: Int = 0xf1f1f1
 )
