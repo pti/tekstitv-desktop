@@ -19,13 +19,7 @@ class SubpagePanel : JPanel() {
     var latestEvent: PageEvent? = null
         set(value) {
             field = value
-
-            if (value is PageEvent.Loaded) {
-                shortcuts.currentPage = value.subpage.location.page
-            } else {
-                shortcuts.currentPage = null
-            }
-
+            shortcuts.update(value)
             repaint()
         }
 

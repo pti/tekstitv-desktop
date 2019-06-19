@@ -2,6 +2,7 @@ package fi.reuna.tekstitv.ui
 
 import fi.reuna.tekstitv.ConfigurationProvider
 import fi.reuna.tekstitv.NavigationHistory
+import fi.reuna.tekstitv.PageEvent
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
@@ -14,14 +15,22 @@ class ShortcutsBar {
 
     private var shortcuts: List<Int> = emptyList()
 
-    var currentPage: Int? = null
-    set(value) {
-        field = value
+    fun update(event: PageEvent?) {
 
-        shortcuts = if (value == null) {
-            emptyList()
+        if (event is PageEvent.Loaded) {
+            val number = event.subpage.location.page
+            val max = shortcutColors.size
+            shortcuts = NavigationHistory.instance.topHits(number, max)
+            val remaining = max - shortcuts.size
+
+            if (remaining > 0) {
+                shortcuts = shortcuts.toMutableList().apply {
+                    addAll(event.subpage.links.take(remaining))
+                }
+            }
+
         } else {
-            NavigationHistory.instance.topHits(value)
+            shortcuts = emptyList()
         }
     }
 
