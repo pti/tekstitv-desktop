@@ -24,8 +24,15 @@ class ShortcutsBar {
             val remaining = max - shortcuts.size
 
             if (remaining > 0) {
-                shortcuts = shortcuts.toMutableList().apply {
-                    addAll(event.subpage.links.take(remaining))
+                val links = event.subpage.links
+                        .filter { !shortcuts.contains(it) }
+                        .take(remaining)
+
+                if (links.isNotEmpty()) {
+                    val tmp = linkedSetOf<Int>()
+                    tmp.addAll(shortcuts)
+                    tmp.addAll(links)
+                    shortcuts = tmp.toList()
                 }
             }
 

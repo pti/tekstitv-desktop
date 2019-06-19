@@ -43,7 +43,7 @@ data class Subpage(val location: Location, val content: String) {
 }
 
 private fun parseLinks(pieces: Array<PagePiece>): IntArray {
-    val links = mutableListOf<PageLink>()
+    val links = mutableSetOf<PageLink>()
     val pageNumRegex = """(?=(?:\s|-|^)([1-8]\d{2})(?:\s|-|$))""".toRegex()
     // Lookahead is used to allow overlapping matches, e.g. in "331   345-346" match 331, 345 and 346.
 
@@ -53,8 +53,10 @@ private fun parseLinks(pieces: Array<PagePiece>): IntArray {
                 .forEach { links.add(it) }
     }
 
-    links.sortByDescending { it.doubleHeight }
-    return links.map { it.page }.toIntArray()
+    return links.toList()
+            .sortedByDescending { it.doubleHeight }
+            .map { it.page }
+            .toIntArray()
 }
 
 data class PageLink(val page: Int, val doubleHeight: Boolean)
