@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
 
-class Controller(panel: SubpagePanel, frame: JFrame) {
+class Controller(view: MainView, frame: JFrame) {
 
     private val provider = PageProvider()
     private val digitBuffer = DigitBuffer()
@@ -20,6 +20,7 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
 
     init {
         Log.debug("begin")
+        digitBuffer.listener = view.pageNumberView
 
         val cfg = ConfigurationProvider.cfg
         autoRefreshInterval = cfg.autoRefreshInterval
@@ -35,10 +36,15 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
                 .observeOnEventQueue()
                 .subscribe {
 
-                    if (it is PageEvent.Failed && it.autoReload && panel.latestEvent is PageEvent.Loaded) {
+                    if (it is PageEvent.Failed && it.autoReload && view.pagePanel.latestEvent is PageEvent.Loaded) {
                         // Failed to automatically refresh the page -> keep on displaying the currently loaded page
                     } else {
-                        panel.latestEvent = it
+                        view.pagePanel.latestEvent = it
+                        view.shortcuts.update(it)
+
+                        if (it is PageEvent.Loaded) {
+                            digitBuffer.setCurrentPage(it.subpage.location.page)
+                        }
                     }
                 }
 
@@ -53,7 +59,7 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
                             KeyEvent.VK_R -> provider.reload()
                             KeyEvent.VK_Q -> {
                                 stop()
-                                (SwingUtilities.getRoot(panel) as? JFrame)?.dispose()
+                                (SwingUtilities.getRoot(view) as? JFrame)?.dispose()
                             }
                             else -> return@subscribe
                         }
@@ -75,7 +81,6 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
                 }
 
         // TODO display some kind of loading indicator if request takes a long time
-        // TODO display and update page number when consuming key events -> observable for digitbuffer / provide property
 
         disposables += frame.observeKeyEvents()
                 .observeOnEventQueue()
@@ -90,7 +95,7 @@ class Controller(panel: SubpagePanel, frame: JFrame) {
                         digitBuffer.handleInput(char)?.let { setPage(it) }
 
                     } else {
-                        var page = panel.shortcuts.getShortcut(char)
+                        var page = view.shortcuts.getShortcut(char)
 
                         if (page != null) {
                             setPage(page)

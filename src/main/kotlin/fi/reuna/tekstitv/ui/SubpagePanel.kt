@@ -1,7 +1,6 @@
 package fi.reuna.tekstitv.ui
 
 import fi.reuna.tekstitv.ErrorType
-import fi.reuna.tekstitv.Log
 import fi.reuna.tekstitv.PageEvent
 import fi.reuna.tekstitv.Subpage
 import java.awt.Graphics
@@ -9,17 +8,14 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
-import kotlin.math.ceil
 
 class SubpagePanel : JPanel() {
 
     private var spec: PaintSpec? = null
-    val shortcuts = ShortcutsBar()
 
     var latestEvent: PageEvent? = null
         set(value) {
             field = value
-            shortcuts.update(value)
             repaint()
         }
 
@@ -63,28 +59,22 @@ class SubpagePanel : JPanel() {
         g.drawString(errorMessage, (width - textWidth) / 2, (height - textHeight) / 2)
     }
 
-    override fun paintComponent(g: Graphics?) {
-        Log.debug("")
+    override fun paintComponent(g: Graphics) {
         super.paintComponent(g)
 
-        val g2d = g as Graphics2D
         val event = latestEvent
-        val contentH = ceil(height * 0.92).toInt()
-        val shortcutsH = height - contentH
-        val spec = checkSpec(width, contentH)
+        val spec = checkSpec(width, height)
 
+        val g2d = g as Graphics2D
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
 
         when (event) {
             is PageEvent.Loaded -> {
-                paintSubpage(g2d, spec, event.subpage, width, contentH)
+                paintSubpage(g2d, spec, event.subpage, width, height)
             }
             is PageEvent.Failed -> {
-                paintErrorMessage(g2d, spec, event, width, contentH)
+                paintErrorMessage(g2d, spec, event, width, height)
             }
         }
-
-        g2d.translate(0, contentH)
-        shortcuts.paint(g2d, width, shortcutsH)
     }
 }

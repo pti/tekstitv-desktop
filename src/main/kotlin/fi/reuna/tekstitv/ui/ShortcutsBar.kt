@@ -3,12 +3,11 @@ package fi.reuna.tekstitv.ui
 import fi.reuna.tekstitv.ConfigurationProvider
 import fi.reuna.tekstitv.NavigationHistory
 import fi.reuna.tekstitv.PageEvent
-import java.awt.Color
-import java.awt.Font
-import java.awt.Graphics2D
+import java.awt.*
+import javax.swing.JPanel
 import kotlin.math.ceil
 
-class ShortcutsBar {
+class ShortcutsBar: JPanel() {
 
     private val shortcutChars = listOf('r', 'g', 'y', 'b')
     private val shortcutColors = listOf(Color.RED.darker(), Color.GREEN.darker(), Color.YELLOW.darker(), Color.BLUE.brighter())
@@ -39,6 +38,8 @@ class ShortcutsBar {
         } else {
             shortcuts = emptyList()
         }
+
+        repaint()
     }
 
     fun getShortcut(colorCharacter: Char): Int? {
@@ -51,7 +52,12 @@ class ShortcutsBar {
         }
     }
 
-    fun paint(g: Graphics2D, width: Int, height: Int) {
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+
+        val g2d = g as Graphics2D
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+
         val cfg = ConfigurationProvider.cfg
         val fontSize = ceil(height * cfg.shortcutFontSizer).toInt()
         g.font = Font(cfg.shortcutFontFamily, Font.PLAIN, fontSize)
@@ -65,8 +71,8 @@ class ShortcutsBar {
         val spacing = (approxMaxTextWidth * 0.6).toInt()
         val totalW = numShortcuts * (shortcutContentW + colorW) + (numShortcuts - 1) * spacing
 
-        val bg = Color(cfg.shortcutBackground)
-        val fg = Color(cfg.shortcutForeground)
+        val bg = cfg.shortcutBackground
+        val fg = cfg.shortcutForeground
         var x = (width - totalW) / 2
         val y = (height - shortcutH) / 2
         val textY = y + (shortcutH - fm.height) / 2 + fm.ascent

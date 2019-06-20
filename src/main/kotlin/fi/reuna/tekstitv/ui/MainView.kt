@@ -3,22 +3,53 @@ package fi.reuna.tekstitv.ui
 import fi.reuna.tekstitv.ConfigurationProvider
 import fi.reuna.tekstitv.Controller
 import fi.reuna.tekstitv.Log
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.RenderingHints
 import java.awt.event.WindowEvent
 import java.util.prefs.Preferences
 import javax.swing.JFrame
+import javax.swing.JPanel
+import kotlin.math.ceil
 
 private const val PREF_WIN_X = "win_x"
 private const val PREF_WIN_Y = "win_y"
 private const val PREF_WIN_W = "win_w"
 private const val PREF_WIN_H = "win_h"
 
-class MainView {
+class MainView: JPanel() {
+
+    val pagePanel = SubpagePanel()
+    val pageNumberView = PageNumberView()
+    val shortcuts = ShortcutsBar()
+
+    init {
+        layout = null
+        add(pagePanel)
+        add(shortcuts)
+        add(pageNumberView)
+    }
+
+    override fun setBounds(x: Int, y: Int, width: Int, height: Int) {
+        super.setBounds(x, y, width, height)
+
+        val topBarH = ceil(height * 0.04).toInt()
+        val bottomBarH = ceil(height * 0.08).toInt()
+        val contentY = y + topBarH
+        val contentH = height - topBarH - bottomBarH
+        val bottomBarY = contentY + contentH
+
+        pageNumberView.setBounds(x, y, width, topBarH)
+        pagePanel.setBounds(x, contentY, width, contentH)
+        shortcuts.setBounds(x, bottomBarY, width, bottomBarH)
+    }
 
     fun createUI() {
+        val cfg = ConfigurationProvider.cfg
         val prefs = Preferences.userNodeForPackage(Controller::class.java)
         val frame = JFrame("Teksti-TV")
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
-        frame.background = ConfigurationProvider.cfg.backgroundColor
+        frame.background = cfg.backgroundColor
 
         if (prefs.get(PREF_WIN_X, null) != null && prefs.get(PREF_WIN_W, null) != null) {
             frame.setLocation(prefs.getInt(PREF_WIN_X, 0), prefs.getInt(PREF_WIN_Y, 0))
@@ -26,9 +57,12 @@ class MainView {
 
         frame.setSize(prefs.getInt(PREF_WIN_W, 500), prefs.getInt(PREF_WIN_H, 600))
 
-        val panel = SubpagePanel()
-        panel.background = frame.background
-        frame.contentPane.add(panel)
+        background = frame.background
+        pagePanel.background = frame.background
+        pageNumberView.background = frame.background
+        shortcuts.background = frame.background
+
+        frame.contentPane.add(this)
         frame.isVisible = true
 
         frame.observeWindowEvents()
@@ -42,7 +76,7 @@ class MainView {
                 }
 
         Log.debug("begin create controller")
-        Controller(panel, frame)
+        Controller(this, frame)
         Log.debug("done creating controller")
     }
 }

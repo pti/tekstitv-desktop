@@ -40,6 +40,10 @@ data class Configuration(
         val fontFamily: String = "Fira Mono",
         val shortcutFontFamily: String = "Fira Sans",
         val shortcutFontSizer: Double = 0.34,
-        val shortcutBackground: Int = 0x1f1f1f,
-        val shortcutForeground: Int = 0xf1f1f1
+        val shortcutBackground: Color = Color(0x1f1f1f),
+        val shortcutForeground: Color = Color(0xf1f1f1),
+        val pageNumberFontFamily: String = "Fira Mono",
+        val pageNumberFontSizer: Double = 0.65,
+        val pageNumberColorActive: Color = Color(0xffffff),
+        val pageNumberColorInactive: Color = Color(0xc0c0c0)
 )
