@@ -31,7 +31,7 @@ class MainView: JPanel() {
         super.setBounds(x, y, width, height)
 
         val topBarH = ceil(height * 0.04).toInt()
-        val bottomBarH = ceil(height * 0.08).toInt()
+        val bottomBarH = ceil(height * 0.10).toInt()
         val contentY = y + topBarH
         val contentH = height - topBarH - bottomBarH
         val bottomBarY = contentY + contentH

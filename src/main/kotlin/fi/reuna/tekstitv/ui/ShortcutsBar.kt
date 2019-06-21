@@ -67,7 +67,7 @@ class ShortcutsBar: JPanel() {
         val approxMaxTextWidth = fm.stringWidth("000")
         val shortcutContentW = (approxMaxTextWidth * 1.8).toInt()
         val colorW = 3
-        val shortcutH = (fm.height * 1.4).toInt()
+        val shortcutH = (fm.height * 1.32).toInt()
         val spacing = (approxMaxTextWidth * 0.6).toInt()
         val totalW = numShortcuts * (shortcutContentW + colorW) + (numShortcuts - 1) * spacing
 
