@@ -37,6 +37,10 @@ class NavigationHistory {
         })
     }
 
+    fun close() {
+        saveTimer.cancel()
+    }
+
     fun add(source: Int, destination: Int) {
         var hits = hitsByPage[source]
 

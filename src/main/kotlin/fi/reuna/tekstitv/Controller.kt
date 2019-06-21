@@ -59,7 +59,7 @@ class Controller(view: MainView, frame: JFrame) {
                             KeyEvent.VK_R -> provider.reload()
                             KeyEvent.VK_Q -> {
                                 stop()
-                                (SwingUtilities.getRoot(view) as? JFrame)?.dispose()
+                                frame.dispose()
                             }
                             else -> return@subscribe
                         }
@@ -132,6 +132,7 @@ class Controller(view: MainView, frame: JFrame) {
     fun stop() {
         stopAutoRefresh()
         digitBuffer.close()
+        NavigationHistory.instance.close()
         disposables.dispose()
         provider.stop()
     }
