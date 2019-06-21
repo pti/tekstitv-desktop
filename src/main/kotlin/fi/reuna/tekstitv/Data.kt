@@ -1,5 +1,7 @@
 package fi.reuna.tekstitv
 
+import java.awt.Color
+
 data class Location(val page: Int, val sub: Int) {
 
     fun move(direction: Direction): Location {
@@ -43,20 +45,38 @@ data class Subpage(val location: Location, val content: String) {
 }
 
 private fun parseLinks(pieces: Array<PagePiece>): IntArray {
+    val defaultColor = Color.WHITE
     val links = mutableSetOf<PageLink>()
     val pageNumRegex = """(?=(?:\s|-|^)([1-8]\d{2})(?:\s|-|$))""".toRegex()
     // Lookahead is used to allow overlapping matches, e.g. in "331   345-346" match 331, 345 and 346.
 
-    pieces.forEach { piece ->
-        pageNumRegex.findAll(piece.content)
-                .map { PageLink(it.groupValues[1].toInt(), piece.doubleHeight) }
-                .forEach { links.add(it) }
+    for ((index, piece) in pieces.withIndex()) {
+        val pageNumbers = pageNumRegex.findAll(piece.content)
+                .map { it.groupValues[1].toInt() }
+                .toList()
+
+        if (pageNumbers.isNotEmpty()) {
+            val next = if (index < pieces.size - 1) pieces[index + 1] else null
+
+            val importance = when {
+                piece.doubleHeight && piece.foreground != defaultColor && piece.background == null -> 100
+                piece.doubleHeight -> 90
+                next != null && piece.content.trim().length == 3 -> {
+                    if (piece.foreground != next.foreground && next.foreground != defaultColor) 10 else 1
+                }
+                else -> 1
+            }
+
+            pageNumbers
+                    .map { PageLink(it, importance) }
+                    .forEach { links.add(it) }
+        }
     }
 
     return links.toList()
-            .sortedByDescending { it.doubleHeight }
+            .sortedByDescending { it.importance }
             .map { it.page }
             .toIntArray()
 }
 
-data class PageLink(val page: Int, val doubleHeight: Boolean)
+data class PageLink(val page: Int, val importance: Int)
