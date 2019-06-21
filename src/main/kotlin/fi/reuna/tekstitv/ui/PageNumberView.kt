@@ -24,7 +24,7 @@ class PageNumberView: JPanel(), DigitBufferListener {
             val fm = g.getFontMetrics(g.font)
 
             g.color = if (inputActive) cfg.pageNumberColorActive else cfg.pageNumberColorInactive
-            g.drawString(content, (width - fm.stringWidth(content)) / 2, height - fm.descent)
+            g.drawString(content, (width - fm.stringWidth(content)) / 2, (height - fm.height) / 2 + fm.ascent)
         }
     }
 

@@ -29,9 +29,9 @@ class SubpagePanel : JPanel() {
     }
 
     private fun paintSubpage(g: Graphics2D, spec: PaintSpec, subpage: Subpage, width: Int, height: Int) {
-        val x0 = (width - 2 * spec.margin - spec.contentWidth) / 2 + spec.margin
+        val x0 = (width - spec.contentWidth) / 2
         var x = x0
-        var y = (height - 2 * spec.margin - spec.contentHeight) / 2 + spec.margin
+        var y = (height - spec.contentHeight) / 2
 
         g.font = spec.font
 

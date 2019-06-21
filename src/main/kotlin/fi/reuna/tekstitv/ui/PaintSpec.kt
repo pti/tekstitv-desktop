@@ -16,12 +16,10 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val foreground = Color.WHITE!!
     val contentWidth: Int
     val contentHeight: Int
-    val margin: Int
 
     init {
         val cfg = ConfigurationProvider.cfg
-        margin = cfg.margin
-        font = fontForSize(g, cfg.fontFamily, width - 2 * margin, height - 2 * margin)
+        font = fontForSize(g, cfg.fontFamily, width, height)
         fontMetrics = g.getFontMetrics(font)
         charWidth = fontMetrics.charWidth('0')
         charHeight = fontMetrics.height
