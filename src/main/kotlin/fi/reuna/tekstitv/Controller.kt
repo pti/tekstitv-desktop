@@ -1,16 +1,20 @@
 package fi.reuna.tekstitv
 
-import fi.reuna.tekstitv.ui.*
+import fi.reuna.tekstitv.ui.MainView
+import fi.reuna.tekstitv.ui.getAppPreferences
+import fi.reuna.tekstitv.ui.observeOnEventQueue
+import fi.reuna.tekstitv.ui.saveWindowRectangle
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
 import java.awt.event.KeyEvent
+import java.awt.event.KeyListener
+import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import javax.swing.JFrame
-import javax.swing.SwingUtilities
 
-class Controller(view: MainView, frame: JFrame) {
+class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdapter() {
 
     private val provider = PageProvider()
     private val digitBuffer = DigitBuffer()
@@ -48,75 +52,22 @@ class Controller(view: MainView, frame: JFrame) {
                     }
                 }
 
-        disposables += frame.observeKeyEvents()
-                .filter { it.id == KeyEvent.KEY_PRESSED }
-                .observeOnEventQueue()
-                .subscribe { e ->
-
-                    if (e.isControlDown) {
-
-                        when (e.keyCode) {
-                            KeyEvent.VK_R -> provider.reload()
-                            KeyEvent.VK_Q -> {
-                                stop()
-                                frame.dispose()
-                            }
-                            else -> return@subscribe
-                        }
-
-                    } else {
-
-                        when (e.keyCode) {
-                            KeyEvent.VK_LEFT -> provider.prevSubpage()
-                            KeyEvent.VK_RIGHT -> provider.nextSubpage()
-                            KeyEvent.VK_UP -> provider.nextPage()
-                            KeyEvent.VK_DOWN -> provider.prevPage()
-                            KeyEvent.VK_BACK_SPACE -> provider.back()
-                            KeyEvent.VK_F5 -> provider.reload()
-                            else -> return@subscribe
-                        }
-                    }
-
-                    digitBuffer.inputEnded()
-                }
-
         // TODO display some kind of loading indicator if request takes a long time
 
-        disposables += frame.observeKeyEvents()
-                .observeOnEventQueue()
-                .filter { it.id == KeyEvent.KEY_TYPED }
-                .subscribe { e ->
-                    val char = e.keyChar
-
-                    if (digitBuffer.isEmpty && char == '0') {
-                        provider.togglePrevious()
-
-                    } else if (char.isDigit()) {
-                        digitBuffer.handleInput(char)?.let { setPage(it) }
-
-                    } else {
-                        var page = view.shortcuts.getShortcut(char)
-
-                        if (page != null) {
-                            setPage(page)
-                        }
-
-                        digitBuffer.inputEnded()
-                    }
-                }
+        frame.addKeyListener(this)
+        frame.addWindowListener(this)
 
         startAutoRefresh()
+    }
 
-        frame.observeWindowEvents()
-                .subscribe {
-                    when (it.id) {
-                        WindowEvent.WINDOW_ICONIFIED -> stopAutoRefresh()
-                        WindowEvent.WINDOW_DEICONIFIED -> {
-                            provider.reload()
-                            startAutoRefresh()
-                        }
-                    }
-                }
+    fun stop() {
+        frame.removeKeyListener(this)
+        frame.removeWindowListener(this)
+        stopAutoRefresh()
+        digitBuffer.close()
+        NavigationHistory.instance.close()
+        disposables.dispose()
+        provider.stop()
     }
 
     private fun setPage(number: Int) {
@@ -127,14 +78,6 @@ class Controller(view: MainView, frame: JFrame) {
         }
 
         provider.set(number)
-    }
-
-    fun stop() {
-        stopAutoRefresh()
-        digitBuffer.close()
-        NavigationHistory.instance.close()
-        disposables.dispose()
-        provider.stop()
     }
 
     private fun startAutoRefresh() {
@@ -148,5 +91,65 @@ class Controller(view: MainView, frame: JFrame) {
     private fun stopAutoRefresh() {
         autoRefresher?.dispose()
         autoRefresher = null
+    }
+
+    override fun keyTyped(e: KeyEvent) {
+        val char = e.keyChar
+
+        if (digitBuffer.isEmpty && char == '0') {
+            provider.togglePrevious()
+
+        } else if (char.isDigit()) {
+            digitBuffer.handleInput(char)?.let { setPage(it) }
+
+        } else {
+            view.shortcuts.getShortcut(char)?.let { setPage(it) }
+            digitBuffer.inputEnded()
+        }
+    }
+
+    override fun keyPressed(e: KeyEvent) {
+
+        if (e.isControlDown) {
+
+            when (e.keyCode) {
+                KeyEvent.VK_R -> provider.reload()
+                KeyEvent.VK_Q -> {
+                    stop()
+                    frame.dispose()
+                }
+                else -> return
+            }
+
+        } else {
+
+            when (e.keyCode) {
+                KeyEvent.VK_LEFT -> provider.prevSubpage()
+                KeyEvent.VK_RIGHT -> provider.nextSubpage()
+                KeyEvent.VK_UP -> provider.nextPage()
+                KeyEvent.VK_DOWN -> provider.prevPage()
+                KeyEvent.VK_BACK_SPACE -> provider.back()
+                KeyEvent.VK_F5 -> provider.reload()
+                else -> return
+            }
+        }
+
+        digitBuffer.inputEnded()
+    }
+
+    override fun keyReleased(e: KeyEvent) {
+    }
+
+    override fun windowIconified(e: WindowEvent?) {
+        stopAutoRefresh()
+    }
+
+    override fun windowDeiconified(e: WindowEvent?) {
+        provider.reload()
+        startAutoRefresh()
+    }
+
+    override fun windowClosing(e: WindowEvent?) {
+        frame.saveWindowRectangle(getAppPreferences())
     }
 }
