@@ -2,24 +2,20 @@ package fi.reuna.tekstitv
 
 import fi.reuna.tekstitv.ui.MainView
 import fi.reuna.tekstitv.ui.getAppPreferences
-import fi.reuna.tekstitv.ui.observeOnEventQueue
 import fi.reuna.tekstitv.ui.saveWindowRectangle
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.disposables.Disposable
+import kotlinx.coroutines.*
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 import javax.swing.JFrame
 
-class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdapter() {
+class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdapter(), PageEventListener {
 
-    private val provider = PageProvider()
+    private val provider = PageProvider(this)
     private val digitBuffer = DigitBuffer()
-    private val disposables = CompositeDisposable()
-    private var autoRefresher: Disposable? = null
+    private var autoRefreshJob: Job? = null
     private val autoRefreshInterval: Duration
 
     init {
@@ -36,28 +32,10 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
         provider.set(cfg.startPage)
         Log.debug("set initial page")
 
-        provider.observe()
-                .observeOnEventQueue()
-                .subscribe {
-
-                    if (it is PageEvent.Failed && it.autoReload && view.pagePanel.latestEvent is PageEvent.Loaded) {
-                        // Failed to automatically refresh the page -> keep on displaying the currently loaded page
-                    } else {
-                        view.pagePanel.latestEvent = it
-                        view.shortcuts.update(it)
-
-                        if (it is PageEvent.Loaded) {
-                            digitBuffer.setCurrentPage(it.subpage.location.page)
-                        }
-                    }
-                }
-
         // TODO display some kind of loading indicator if request takes a long time
 
         frame.addKeyListener(this)
         frame.addWindowListener(this)
-
-        startAutoRefresh()
     }
 
     fun stop() {
@@ -66,7 +44,6 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
         stopAutoRefresh()
         digitBuffer.close()
         NavigationHistory.instance.close()
-        disposables.dispose()
         provider.stop()
     }
 
@@ -80,17 +57,33 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
         provider.set(number)
     }
 
-    private fun startAutoRefresh() {
-        if (autoRefresher != null) return
+    private fun restartAutoRefresh() {
+        autoRefreshJob?.cancel()
 
-        autoRefresher = provider.observe()
-                .debounce(autoRefreshInterval.seconds, TimeUnit.SECONDS)
-                .subscribe { provider.reload(autoReload = true) }
+        autoRefreshJob = GlobalScope.launch(Dispatchers.Main) {
+            delay(autoRefreshInterval.toMillis())
+            provider.reload(autoReload = true)
+        }
     }
 
     private fun stopAutoRefresh() {
-        autoRefresher?.dispose()
-        autoRefresher = null
+        autoRefreshJob?.cancel()
+        autoRefreshJob = null
+    }
+
+    override fun onPageEvent(event: PageEvent) {
+        restartAutoRefresh()
+        
+        if (event is PageEvent.Failed && event.autoReload && view.pagePanel.latestEvent is PageEvent.Loaded) {
+            // Failed to automatically refresh the page -> keep on displaying the currently loaded page
+        } else {
+            view.pagePanel.latestEvent = event
+            view.shortcuts.update(event)
+
+            if (event is PageEvent.Loaded) {
+                digitBuffer.setCurrentPage(event.subpage.location.page)
+            }
+        }
     }
 
     override fun keyTyped(e: KeyEvent) {
@@ -146,7 +139,6 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
 
     override fun windowDeiconified(e: WindowEvent?) {
         provider.reload()
-        startAutoRefresh()
     }
 
     override fun windowClosing(e: WindowEvent?) {

@@ -3,10 +3,8 @@ package fi.reuna.tekstitv
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
-import io.reactivex.Single
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -15,16 +13,10 @@ import java.util.*
 interface TTVService {
 
     @GET("ttvcontent?c=true")
-    fun getPage(@Query("p") pageNumber: Int) : Single<TTVContent>
+    suspend fun getPage(@Query("p") page : Int, @Query("s") rel: Direction? = null): TTVContent
 
     @GET("ttvcontent?c=true")
-    fun getPages(@Query("p") pageNumbers: List<Int>) : Single<TTVContent>
-
-    @GET("ttvcontent?c=true&s=next")
-    fun getNextPage(@Query("p") pageNumber: Int) : Single<TTVContent>
-
-    @GET("ttvcontent?c=true&s=prev")
-    fun getPreviousPage(@Query("p") pageNumber: Int) : Single<TTVContent>
+    suspend fun getPages(@Query("p") pageNumbers: List<Int>) : TTVContent
 
     companion object TTVServiceProvider {
 
@@ -60,7 +52,6 @@ interface TTVService {
 
             val retrofit = Retrofit.Builder()
                     .baseUrl(cfg.baseUrl)
-                    .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
                     .addConverterFactory(MoshiConverterFactory.create(moshi))
                     .client(client)
                     .build()

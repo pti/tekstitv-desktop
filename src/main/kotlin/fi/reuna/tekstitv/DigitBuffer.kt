@@ -1,7 +1,6 @@
 package fi.reuna.tekstitv
 
-import java.util.*
-import kotlin.concurrent.schedule
+import java.time.Duration
 
 interface DigitBufferListener {
     fun onDigitBufferChanged(content: String, inputActive: Boolean)
@@ -13,8 +12,7 @@ class DigitBuffer {
     private val emptyChar = '.'
 
     private val buffer = StringBuffer()
-    private val resetTimer = Timer()
-    private var resetTask: TimerTask? = null
+    private val resetter = Debouncer()
     private var lastPageNumber: Int? = null
     private var content: String = updateContent()
     private var inputActive = false
@@ -24,7 +22,7 @@ class DigitBuffer {
     val isEmpty get() = buffer.isEmpty()
 
     fun close() {
-        resetTimer.cancel()
+        resetter.destroy()
     }
 
     fun setCurrentPage(number: Int) {
@@ -53,21 +51,17 @@ class DigitBuffer {
     }
 
     fun inputEnded() {
-
-        if (resetTask != null) {
-            stopTimer()
-            clear()
-        }
+        stopTimer()
+        clear()
     }
 
     private fun startTimer() {
         inputActive = true
-        resetTask = resetTimer.schedule(3000) { clear() }
+        resetter.start(Duration.ofSeconds(3)) { clear() }
     }
 
     private fun stopTimer() {
-        resetTask?.cancel()
-        resetTask = null
+        resetter.stop()
         inputActive = false
     }
 

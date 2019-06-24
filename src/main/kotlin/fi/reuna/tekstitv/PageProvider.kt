@@ -1,11 +1,7 @@
 package fi.reuna.tekstitv
 
-import fi.reuna.tekstitv.ui.plusAssign
-import io.reactivex.Observable
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.BehaviorSubject
-import io.reactivex.subjects.PublishSubject
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import retrofit2.HttpException
 import java.time.Duration
 import java.time.Instant
@@ -15,18 +11,22 @@ private data class CacheEntry(val page: Page, val added: Instant = Instant.now()
 
 enum class Direction(val delta: Int) {
     NEXT(+1),
-    PREV(-1)
+    PREV(-1);
+
+    override fun toString(): String = name.toLowerCase()
 }
 
-class PageProvider {
+interface PageEventListener {
+    fun onPageEvent(event: PageEvent)
+}
+
+class PageProvider(private val listener: PageEventListener): CoroutineScope by CoroutineScope(Dispatchers.Main) {
 
     private val history = Stack<Location>()
     private val cache = mutableMapOf<Int, CacheEntry>()
-    private val observable: Observable<PageEvent>
-    private val pageEventSubject = BehaviorSubject.create<PageEvent>()
-    private val relativeSubject = PublishSubject.create<Direction>()
-    private val scheduler = Schedulers.single()
-    private val disposables = CompositeDisposable()
+
+    private var relativeRequests: Channel<Direction>? = null
+    private var relativeConsumer: Job? = null
 
     val currentLocation: Location
         get() = history.lastOrNull() ?: Location(100, 0)
@@ -34,59 +34,16 @@ class PageProvider {
     val currentPage: Subpage?
         get() = currentLocation.fromCache()
 
-    init { 
-        observable = pageEventSubject
-
-        disposables += relativeSubject
-                .observeOn(scheduler)
-                .subscribe { direction ->
-                    val ttv = TTVService.instance
-                    val relativeTo = currentLocation
-                    Log.info("relative to ${relativeTo.page}.${relativeTo.sub} move ${direction.delta}")
-
-                    if (direction == null) {
-                        return@subscribe
-                    }
-
-                    // TODO some kind of linked list to cache so that we can check for other than just the immediate page
-                    relativeTo.move(direction).checkCache()?.let {
-                        handleCacheHit(it)
-                        return@subscribe
-                    }
-
-                    when (direction) {
-                        Direction.NEXT -> ttv.getNextPage(relativeTo.page)
-                        Direction.PREV -> ttv.getPreviousPage(relativeTo.page)
-                    }
-                        // If the currentLocation points to a non-existing page, then nextPage/prevPage requests always fail. If that happens, simply try to request to the nextPage page by number.
-                        // This is useful in case the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
-                        .onErrorResumeNext { ttv.getPage(relativeTo.page + direction.delta) }
-                        .map { handle(it, relativeTo.withSub(0), false) }
-                        .onErrorReturn {
-                            Log.error("Failed to get page ${direction.delta} relative to ${relativeTo.page}: $it")
-                            it.asPageEvent(relativeTo, false)
-                        }
-                        .doOnSuccess { pageEventSubject.onNext(it) }
-                        .subscribe()
-                }
-    }
 
     fun stop() {
+        cancel()
         TTVService.shutdown()
-        disposables.dispose()
-    }
-
-    // TODO currentLocation and history etc handling needs to be done thread safely - mutex?
-
-    // TODO when using cached always trigger a reload too to see if the page has changed -- at least if old enough (enough time has passed since the last check)
-
-    fun observe(): Observable<PageEvent> {
-        return observable
     }
 
     fun set(location: Location, checkCache: Boolean = true, autoReload: Boolean = false) {
-    // TODO relativeSubject should be stopped (completed?) - setting a position explicitly should override relative movement
-    //      or relative events before a certain timestamp should be ignored
+        // Relative requests aren't relevant after setting an absolute position, so empty the queue + stop processing the reqs.
+        stopRelativeRequestConsumer()
+
         val cached = if (checkCache) location.checkCache() else null
 
         if (cached != null) {
@@ -94,22 +51,7 @@ class PageProvider {
             return
         }
 
-        TTVService.instance.getPage(location.page)
-                .subscribeOn(Schedulers.io())
-                .observeOn(scheduler)
-                .map { handle(it, location, autoReload) }
-                .onErrorReturn {
-                    Log.error("Failed to get page ${location.page}: $it")
-                    historyAdd(location)
-                    it.asPageEvent(location, autoReload)
-                }
-                .doOnSuccess {
-                    // Ignore the auto reload response if current location has changed.
-                    if (!autoReload || it !is PageEvent.Loaded || it.subpage.location == currentLocation) {
-                        pageEventSubject.onNext(it)
-                    }
-                }
-                .subscribe()
+        launch { get(location, autoReload = autoReload) }
     }
 
     fun set(page: Int) {
@@ -139,16 +81,11 @@ class PageProvider {
     }
 
     fun nextPage() {
-        Log.info("nextPage")
-        // Handle nextPage/prevPage synchronously instead of immediately -> user can press nextPage/prevPage quickly N times to move N pages forward/backward (while taking possible gaps into account).
-        // Otherwise quick nextPage/prevPage presses would result in requesting the same page multiple times (depending of course on the network+server response times and how rapid the navigation is).
-        // Setting the page immediately is useful in case a request takes a long time etc + it is more of a overriding navigation action anyway.
-        relativeSubject.onNext(Direction.NEXT)
+        sendRelativeRequest(Direction.NEXT)
     }
 
     fun prevPage() {
-        Log.info("prevPage")
-        relativeSubject.onNext(Direction.PREV)
+        sendRelativeRequest(Direction.PREV)
     }
 
     fun nextSubpage() {
@@ -171,7 +108,7 @@ class PageProvider {
             currentLocation.withSub(newSubpage).fromCache()?.let {
                 history.pop()
                 history.push(it.location)
-                pageEventSubject.onNext(PageEvent.Loaded(it, cached = true))
+                notify(PageEvent.Loaded(it, cached = true))
             }
         }
     }
@@ -179,7 +116,7 @@ class PageProvider {
     private fun handleCacheHit(cached: Subpage) {
         Log.debug("cached ${cached.location.page}")
         historyAdd(cached.location)
-        pageEventSubject.onNext(PageEvent.Loaded(cached, cached = true))
+        notify(PageEvent.Loaded(cached, cached = true))
     }
 
     private fun handle(received: TTVContent, ref: Location, autoReload: Boolean): PageEvent {
@@ -231,5 +168,87 @@ class PageProvider {
         }
 
         return PageEvent.Failed(type, this, location, autoReload)
+    }
+
+    private fun notify(event: PageEvent) {
+        listener.onPageEvent(event)
+    }
+
+    private suspend fun get(location: Location, direction: Direction? = null, autoReload: Boolean = false, notFoundLocation: Location? = null) {
+
+        try {
+            Log.debug("get ${location.page}")
+            val resp = TTVService.instance.getPage(location.page, direction)
+            val event = handle(resp, location, autoReload)
+
+            // Ignore the auto reload response if current location has changed.
+            if (!autoReload || event !is PageEvent.Loaded || event.subpage.location == currentLocation) {
+                notify(event)
+            }
+
+        } catch (ce: CancellationException) {
+            Log.debug("cancelled - ignore")
+
+        } catch (t: Throwable) {
+
+            if (t is HttpException && t.code() == 404 && notFoundLocation != null) {
+                get(notFoundLocation)
+
+            } else {
+                Log.error("Failed to get page ${location.page}: $t")
+                historyAdd(location)
+                notify(t.asPageEvent(location, autoReload))
+            }
+        }
+    }
+
+    private suspend fun consumeRelativeRequests() {
+        val channel = relativeRequests
+
+        while (isActive && channel != null) {
+            val direction = channel.receive()
+            val relativeTo = currentLocation
+            Log.info("relative to ${relativeTo.page}.${relativeTo.sub} move ${direction.delta}")
+
+            // TODO some kind of linked list to cache so that we can check for other than just the immediate page
+            val hit = relativeTo.move(direction).checkCache()
+
+            if (hit != null) {
+                handleCacheHit(hit)
+                continue
+            }
+
+            get(relativeTo, direction, notFoundLocation = relativeTo.move(direction))
+            // If the relativeTo points to a non-existing page, then nextPage/prevPage requests always fail.
+            // If that happens, simply try to request to the nextPage page by number. This is useful in case
+            // the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
+        }
+    }
+
+    private fun sendRelativeRequest(direction: Direction) {
+        // User might press next/prev repeatedly. If one would just do the request directly, then the same page
+        // request might get triggered. To avoid that and to allow the user to move multiple pages by pressing
+        // next/prev rapidly, a queue is needed for the next/prev requests. Consume a request at a time.
+        Log.debug("$direction")
+        if (relativeConsumer == null) startRelativeRequestConsumer()
+        launch { relativeRequests?.send(direction) }
+    }
+
+    private fun startRelativeRequestConsumer() {
+        Log.debug("start")
+        relativeRequests = Channel()
+        relativeConsumer = launch { consumeRelativeRequests() }
+    }
+
+    private fun stopRelativeRequestConsumer() {
+
+        if (relativeConsumer != null) {
+            Log.debug("stop")
+            relativeConsumer?.cancel()
+            relativeConsumer = null
+
+            relativeRequests?.cancel()
+            relativeRequests = null
+        }
     }
 }

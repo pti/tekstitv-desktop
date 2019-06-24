@@ -8,11 +8,10 @@ import okio.Okio
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
-import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.concurrent.schedule
 
 class NavigationHistory {
 
@@ -21,15 +20,14 @@ class NavigationHistory {
     private val file: Path = System.getProperty("tekstitv.history")
             ?.let { Paths.get(it) } ?: Paths.get(System.getProperty("user.home"), ".tekstitv", "history.json")
 
-    private val saveTimer = Timer()
-    private var saveTask: TimerTask? = null
+    private val saver = Debouncer()
     private var changed = AtomicBoolean(false)
     private var saving = AtomicBoolean(false)
 
     init {
 
         Runtime.getRuntime().addShutdownHook(Thread {
-            saveTimer.cancel()
+            saver.destroy()
 
             if (changed.get() && !saving.get()) {
                 save()
@@ -38,7 +36,7 @@ class NavigationHistory {
     }
 
     fun close() {
-        saveTimer.cancel()
+        saver.destroy()
     }
 
     fun add(source: Int, destination: Int) {
@@ -52,8 +50,7 @@ class NavigationHistory {
         hits.add(PageHit(source, destination))
         changed.set(true)
 
-        saveTask?.cancel()
-        saveTask = saveTimer.schedule(60000) { save() }
+        saver.start(Duration.ofMinutes(1)) { save() }
     }
 
     /**
