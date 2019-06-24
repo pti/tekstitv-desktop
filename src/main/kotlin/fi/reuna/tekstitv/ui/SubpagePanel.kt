@@ -8,6 +8,7 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import kotlin.math.ceil
 
 class SubpagePanel : JPanel() {
 

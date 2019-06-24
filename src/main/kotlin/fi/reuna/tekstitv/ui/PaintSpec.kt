@@ -16,6 +16,7 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val foreground = Color.WHITE!!
     val contentWidth: Int
     val contentHeight: Int
+    val doubleHeightMultiplier = 2.0 // Defined in case one wants to disable use of double height lines at some point.
 
     init {
         val cfg = ConfigurationProvider.cfg
