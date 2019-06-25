@@ -1,68 +1,49 @@
 package fi.reuna.tekstitv
 
+import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
-import okhttp3.OkHttpClient
-import retrofit2.Call
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
-import retrofit2.http.GET
-import retrofit2.http.Query
+import java.io.FileNotFoundException
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URL
+import java.nio.file.Paths
 import java.util.*
+import javax.xml.ws.http.HTTPException
 
-interface TTVService {
+class TTVService {
 
-    @GET("ttvcontent?c=true")
-    fun getPage(@Query("p") page : Int, @Query("s") rel: Direction? = null): Call<TTVContent>
+    private val jsonAdapter: JsonAdapter<TTVContent>
+    private val baseUrl: String
 
-    @GET("ttvcontent?c=true")
-    fun getPages(@Query("p") pageNumbers: List<Int>) : Call<TTVContent>
+    init {
+        val cfg = ConfigurationProvider.cfg
+        baseUrl = "${cfg.baseUrl}${if (cfg.baseUrl.endsWith("/")) "" else "/"}ttvcontent?a=${cfg.apiKey}&c=true"
 
-    companion object TTVServiceProvider {
+        jsonAdapter = Moshi.Builder()
+                .add(Date::class.java, Rfc3339DateJsonAdapter())
+                .build()
+                .adapter(TTVContent::class.java)
+    }
 
-        val instance: TTVService
-        private val client: OkHttpClient
+    fun get(page : Int, rel: Direction? = null): TTVContent {
+        var url = "$baseUrl&p=$page"
+        if (rel != null) url += "&s=$rel"
+        Log.debug("send $url")
 
-        init {
-            val cfg = ConfigurationProvider.cfg
+        with(URL(url).openConnection() as HttpURLConnection) {
+            val status = responseCode
+            Log.debug("recv $url [$status]")
 
-            client = OkHttpClient.Builder()
-                    .addInterceptor { chain ->
-                        val request = chain.request()
-                        val newUrl = request.url().newBuilder().addQueryParameter("a", cfg.apiKey).build()
-                        val newRequest = request.newBuilder().url(newUrl).build()
-                        chain.proceed(newRequest)
-                    }
-                    .addInterceptor { chain ->
-                        val request = chain.request()
-                        Log.debug("send ${request.method()} ${request.url()}")
+            if (status in 200..299) {
+                val body = inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
+                return jsonAdapter.fromJson(body) ?: throw IOException("Could not parse response")
 
-                        val resp = chain.proceed(request)
-
-                        val elapsed = resp.receivedResponseAtMillis() - resp.sentRequestAtMillis()
-                        Log.debug("recv ${request.method()} ${resp.request().url()} [${resp.code()}] ($elapsed ms)")
-
-                        resp
-                    }
-                    .build()
-
-            val moshi = Moshi.Builder()
-                    .add(Date::class.java, Rfc3339DateJsonAdapter())
-                    .build()
-
-            val retrofit = Retrofit.Builder()
-                    .baseUrl(cfg.baseUrl)
-                    .addConverterFactory(MoshiConverterFactory.create(moshi))
-                    .client(client)
-                    .build()
-
-            instance = retrofit.create(TTVService::class.java)
-        }
-
-        fun shutdown() {
-            // Needed for the dispatcher thread to shutdown (otherwise the thread could keep the app from closing).
-            client.dispatcher().executorService().shutdown()
+            } else {
+                throw HTTPException(status)
+            }
         }
     }
 }

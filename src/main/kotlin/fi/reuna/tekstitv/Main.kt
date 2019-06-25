@@ -7,13 +7,11 @@ import kotlin.concurrent.thread
 fun main() {
     Log.debug("begin")
 
-    // TTVService instance initialization, or at least building the OkHttpClient, takes quite a while so
-    // do it as soon as possible. This way it might be ready already once the UI has been created.
-    // If the beginning of time is when Log was initialized and t1 is the time at which the first page request
-    // is sent, then in one setup t1 decreased from ~550ms to ~420ms by initializing TTVService in a separate thread.
+    // By creating a TTVService instance (loading associated classes) while initializing the UI, the first request
+    // is made a few 10ms faster (~240ms instead of 270ms).
     thread {
         Log.debug("start creating TTVService instance")
-        TTVService.instance
+        TTVService()
         Log.debug("done creating TTVService instance")
     }
 

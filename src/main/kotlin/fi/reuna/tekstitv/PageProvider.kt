@@ -1,7 +1,5 @@
 package fi.reuna.tekstitv
 
-import retrofit2.Call
-import retrofit2.HttpException
 import java.time.Duration
 import java.time.Instant
 import java.util.*
@@ -10,6 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.swing.SwingUtilities
+import javax.xml.ws.http.HTTPException
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 
@@ -42,7 +41,6 @@ class PageProvider(private val listener: PageEventListener) {
 
     fun stop() {
         jobs.stop()
-        TTVService.shutdown()
     }
 
     fun set(location: Location, checkCache: Boolean = true, autoReload: Boolean = false) {
@@ -161,8 +159,8 @@ class PageProvider(private val listener: PageEventListener) {
     private fun Throwable.asPageEvent(location: Location, autoReload: Boolean): PageEvent {
         var type = ErrorType.OTHER
 
-        if (this is HttpException && code() == 404) {
-            type = ErrorType.OTHER
+        if (this is HTTPException && statusCode == 404) {
+            type = ErrorType.NOT_FOUND
         }
 
         return PageEvent.Failed(type, this, location, autoReload)
@@ -179,22 +177,20 @@ class PageProvider(private val listener: PageEventListener) {
 
     private inner class PageJobConsumer {
 
+        private val ttv = TTVService()
         private val jobs = ArrayBlockingQueue<PageJob>(10)
         private val running = AtomicBoolean(false)
         private val stopped = AtomicBoolean(false)
-        private var activeReq: Call<TTVContent>? = null
         private val reqId = AtomicInteger(1)
         private var ignoreId = AtomicInteger(0)
 
         fun stop() {
             stopped.set(true)
             jobs.add(PageJob()) // Wake up the consumer thread in case it is waiting for a job.
-            activeReq?.cancel()
         }
 
         fun clearAndIgnoreActive() {
             ignoreId.set(reqId.get())
-            Log.debug("clear ${jobs.size} jobs and ignore req #${ignoreId.get()}")
             jobs.clear()
         }
 
@@ -224,7 +220,6 @@ class PageProvider(private val listener: PageEventListener) {
         private fun consume() {
 
             try {
-                val ttv = TTVService.instance
                 running.set(true)
 
                 while (!stopped.get()) {
@@ -251,10 +246,10 @@ class PageProvider(private val listener: PageEventListener) {
                             // If the relativeTo points to a non-existing page, then nextPage/prevPage requests always fail.
                             // If that happens, simply try to request the current page +- 1. This is useful in case
                             // the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
-                            exec(ttv.getPage(location.page, job.direction), notFoundLocation = location.move(job.direction))
+                            exec(location.page, job.direction, notFoundLocation = location.move(job.direction))
 
                         } else {
-                            exec(ttv.getPage(job.location!!.page))
+                            exec(job.location!!.page)
                         }
 
                         val pages = body.pages.map { Page(it) }
@@ -300,25 +295,18 @@ class PageProvider(private val listener: PageEventListener) {
             }
         }
 
-        private fun exec(req: Call<TTVContent>, notFoundLocation: Location? = null): TTVContent {
+        private fun exec(page: Int, rel: Direction? = null, notFoundLocation: Location? = null): TTVContent {
 
-            try {
-                activeReq = req
-                val resp = req.execute()
-                val body = resp.body()
+            return try {
+                ttv.get(page, rel)
 
-                if (resp.code() == 404 && notFoundLocation != null) {
-                    return exec(TTVService.instance.getPage(notFoundLocation.page))
+            } catch (he: HTTPException) {
+
+                if (he.statusCode == 404 && notFoundLocation != null) {
+                    exec(notFoundLocation.page)
+                } else {
+                    throw he
                 }
-
-                if (!resp.isSuccessful || body == null) {
-                    throw HttpException(resp)
-                }
-
-                return body
-
-            } finally {
-                activeReq = null
             }
         }
     }
