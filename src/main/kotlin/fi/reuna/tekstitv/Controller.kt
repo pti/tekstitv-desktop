@@ -3,7 +3,6 @@ package fi.reuna.tekstitv
 import fi.reuna.tekstitv.ui.MainView
 import fi.reuna.tekstitv.ui.getAppPreferences
 import fi.reuna.tekstitv.ui.saveWindowRectangle
-import kotlinx.coroutines.*
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
 import java.awt.event.WindowAdapter
@@ -15,7 +14,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
 
     private val provider = PageProvider(this)
     private val digitBuffer = DigitBuffer()
-    private var autoRefreshJob: Job? = null
+    private val autoRefresher = Debouncer()
     private val autoRefreshInterval: Duration
 
     init {
@@ -41,7 +40,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
     fun stop() {
         frame.removeKeyListener(this)
         frame.removeWindowListener(this)
-        stopAutoRefresh()
+        autoRefresher.destroy()
         digitBuffer.close()
         NavigationHistory.instance.close()
         provider.stop()
@@ -58,17 +57,14 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
     }
 
     private fun restartAutoRefresh() {
-        autoRefreshJob?.cancel()
 
-        autoRefreshJob = GlobalScope.launch(Dispatchers.Main) {
-            delay(autoRefreshInterval.toMillis())
+        autoRefresher.start(autoRefreshInterval) {
             provider.reload(autoReload = true)
         }
     }
 
     private fun stopAutoRefresh() {
-        autoRefreshJob?.cancel()
-        autoRefreshJob = null
+        autoRefresher.stop()
     }
 
     override fun onPageEvent(event: PageEvent) {

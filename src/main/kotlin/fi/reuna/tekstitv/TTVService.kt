@@ -4,6 +4,7 @@ import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
 import okhttp3.OkHttpClient
+import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.GET
@@ -13,10 +14,10 @@ import java.util.*
 interface TTVService {
 
     @GET("ttvcontent?c=true")
-    suspend fun getPage(@Query("p") page : Int, @Query("s") rel: Direction? = null): TTVContent
+    fun getPage(@Query("p") page : Int, @Query("s") rel: Direction? = null): Call<TTVContent>
 
     @GET("ttvcontent?c=true")
-    suspend fun getPages(@Query("p") pageNumbers: List<Int>) : TTVContent
+    fun getPages(@Query("p") pageNumbers: List<Int>) : Call<TTVContent>
 
     companion object TTVServiceProvider {
 
