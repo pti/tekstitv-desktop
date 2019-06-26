@@ -12,10 +12,14 @@ import javax.xml.ws.http.HTTPException
 class TTVService {
 
     private val baseUrl: String
+    private val userAgent: String
 
     init {
         val cfg = ConfigurationProvider.cfg
         baseUrl = "${cfg.baseUrl}${if (cfg.baseUrl.endsWith("/")) "" else "/"}ttvcontent/?a=${cfg.apiKey}&c=true"
+
+        val pkg = javaClass.`package`
+        userAgent = "${pkg.implementationTitle}/${pkg.implementationVersion}"
     }
 
     fun get(page : Int, rel: Direction? = null): TTVContent {
@@ -24,6 +28,7 @@ class TTVService {
         Log.debug("send $url")
 
         with(URL(url).openConnection() as HttpURLConnection) {
+            setRequestProperty("User-Agent", userAgent)
             val t0 = System.nanoTime()
             val status = responseCode
             val t1 = System.nanoTime()

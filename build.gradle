@@ -5,7 +5,7 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '5.0.0'
 }
 
-version '0.1.0'
+version '0.2.0'
 
 sourceCompatibility = 1.8
 
@@ -22,4 +22,13 @@ dependencies {
 
 compileKotlin {
     kotlinOptions.jvmTarget = '1.8'
+}
+
+jar {
+    manifest {
+        attributes(
+                'Implementation-Title': 'tekstitv-desktop',
+                'Implementation-Version': version
+        )
+    }
 }
