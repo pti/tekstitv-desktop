@@ -9,17 +9,17 @@ import kotlin.math.ceil
 
 class ShortcutsBar: JPanel() {
 
-    private val shortcutChars = listOf('r', 'g', 'y', 'b')
-    private val shortcutColors = listOf(Color.RED.darker(), Color.GREEN.darker(), Color.YELLOW.darker(), Color.BLUE.brighter())
+    private val shortcutColors = arrayOf(Color.RED.darker(), Color.GREEN.darker(), Color.YELLOW.darker(), Color.BLUE.brighter())
+    private val shortcutChars = charArrayOf('r', 'g', 'y', 'b')
 
-    private var shortcuts: List<Int> = emptyList()
+    private var shortcuts: Array<Int> = emptyArray()
 
     fun update(event: PageEvent?) {
 
         if (event is PageEvent.Loaded) {
             val number = event.subpage.location.page
             val max = shortcutColors.size
-            shortcuts = NavigationHistory.instance.topHits(number, max)
+            shortcuts = NavigationHistory.instance.topHits(number, max).toTypedArray()
             val remaining = max - shortcuts.size
 
             if (remaining > 0) {
@@ -31,12 +31,12 @@ class ShortcutsBar: JPanel() {
                     val tmp = linkedSetOf<Int>()
                     tmp.addAll(shortcuts)
                     tmp.addAll(links)
-                    shortcuts = tmp.toList()
+                    shortcuts = tmp.toTypedArray()
                 }
             }
 
         } else {
-            shortcuts = emptyList()
+            shortcuts = emptyArray()
         }
 
         repaint()

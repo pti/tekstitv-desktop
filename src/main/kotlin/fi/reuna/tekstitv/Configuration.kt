@@ -22,19 +22,19 @@ object ConfigurationProvider {
             Configuration(
                     p.getProperty("baseUrl"),
                     p.getProperty("apiKey"),
-                    p.getIntProperty("startPage", 100),
-                    p.getColorProperty("backgroundColor", Color.BLACK),
+                    p.getIntProperty("startPage", 100)!!,
+                    p.getColorProperty("backgroundColor", Color.BLACK)!!,
                     p.getDurationProperty("autoRefreshInterval", ChronoUnit.SECONDS, Duration.ofSeconds(60)),
-                    p.getIntProperty("margin", 10),
+                    p.getIntProperty("margin", 10)!!,
                     p.getProperty("fontFamily") ?: "Fira Mono",
                     p.getProperty("shortcutFontFamily") ?: "Fira Sans",
                     p.getDoubleProperty("shortcutFontSizer", 0.28),
-                    p.getColorProperty("shortcutBackground", Color(0x1f1f1f)),
-                    p.getColorProperty("shortcutForeground", Color(0xf1f1f1)),
+                    p.getColorProperty("shortcutBackground", Color(0x1f1f1f))!!,
+                    p.getColorProperty("shortcutForeground", Color(0xf1f1f1))!!,
                     p.getProperty("pageNumberFontFamily") ?: "Fira Mono",
                     p.getDoubleProperty("pageNumberFontSizer", 0.65),
-                    p.getColorProperty("pageNumberColorActive", Color(0xffffff)),
-                    p.getColorProperty("pageNumberColorInactive", Color(0xc0c0c0))
+                    p.getColorProperty("pageNumberColorActive", Color(0xffffff))!!,
+                    p.getColorProperty("pageNumberColorInactive", Color(0xc0c0c0))!!
             )
         }
     }
@@ -58,16 +58,16 @@ data class Configuration(
         val pageNumberColorInactive: Color
 )
 
-private fun Properties.getIntProperty(name: String, defaultValue: Int, radix: Int = 10): Int {
+fun Properties.getIntProperty(name: String, defaultValue: Int? = null, radix: Int = 10): Int? {
     return getProperty(name)?.toIntOrNull(radix) ?: defaultValue
 }
 
-private fun Properties.getColorProperty(name: String, defaultValue: Color): Color {
-    return Color(getIntProperty(name, defaultValue.rgb, radix = 16))
+private fun Properties.getColorProperty(name: String, defaultValue: Color? = null): Color? {
+    return getIntProperty(name, defaultValue?.rgb, radix = 16)?.let { Color(it) }
 }
 
 private fun Properties.getDurationProperty(name: String, unit: TemporalUnit, defaultValue: Duration): Duration {
-    return Duration.of(getIntProperty(name, defaultValue.get(unit).toInt()).toLong(), unit)
+    return Duration.of(getIntProperty(name, defaultValue.get(unit).toInt())!!.toLong(), unit)
 }
 
 private fun Properties.getDoubleProperty(name: String, defaultValue: Double): Double {

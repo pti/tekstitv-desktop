@@ -1,7 +1,6 @@
 package fi.reuna.tekstitv
 
 import fi.reuna.tekstitv.ui.MainView
-import fi.reuna.tekstitv.ui.getAppPreferences
 import fi.reuna.tekstitv.ui.saveWindowRectangle
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
@@ -24,9 +23,6 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
         val cfg = ConfigurationProvider.cfg
         autoRefreshInterval = cfg.autoRefreshInterval
         Log.debug("got configuration")
-
-        NavigationHistory.instance.load()
-        Log.debug("navigation history loaded")
 
         provider.set(cfg.startPage)
         Log.debug("set initial page")
@@ -104,6 +100,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
             when (e.keyCode) {
                 KeyEvent.VK_R -> provider.reload()
                 KeyEvent.VK_Q -> {
+                    frame.saveWindowRectangle()
                     stop()
                     frame.dispose()
                 }
@@ -138,6 +135,6 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
     }
 
     override fun windowClosing(e: WindowEvent?) {
-        frame.saveWindowRectangle(getAppPreferences())
+        frame.saveWindowRectangle()
     }
 }

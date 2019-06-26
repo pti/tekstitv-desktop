@@ -1,31 +1,21 @@
 package fi.reuna.tekstitv
 
-import com.squareup.moshi.JsonAdapter
-import com.squareup.moshi.JsonClass
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
-import java.io.FileNotFoundException
-import java.io.IOException
+import com.eclipsesource.json.Json
+import com.eclipsesource.json.JsonObject
+import com.eclipsesource.json.JsonValue
 import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URL
-import java.nio.file.Paths
-import java.util.*
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import javax.xml.ws.http.HTTPException
 
 class TTVService {
 
-    private val jsonAdapter: JsonAdapter<TTVContent>
     private val baseUrl: String
 
     init {
         val cfg = ConfigurationProvider.cfg
-        baseUrl = "${cfg.baseUrl}${if (cfg.baseUrl.endsWith("/")) "" else "/"}ttvcontent?a=${cfg.apiKey}&c=true"
-
-        jsonAdapter = Moshi.Builder()
-                .add(Date::class.java, Rfc3339DateJsonAdapter())
-                .build()
-                .adapter(TTVContent::class.java)
+        baseUrl = "${cfg.baseUrl}${if (cfg.baseUrl.endsWith("/")) "" else "/"}ttvcontent/?a=${cfg.apiKey}&c=true"
     }
 
     fun get(page : Int, rel: Direction? = null): TTVContent {
@@ -34,12 +24,14 @@ class TTVService {
         Log.debug("send $url")
 
         with(URL(url).openConnection() as HttpURLConnection) {
+            val t0 = System.nanoTime()
             val status = responseCode
-            Log.debug("recv $url [$status]")
+            val t1 = System.nanoTime()
+            Log.debug("recv $url [$status] (${(t1 - t0) / 1000000L}ms)")
 
             if (status in 200..299) {
-                val body = inputStream.use { it.readBytes().toString(Charsets.UTF_8) }
-                return jsonAdapter.fromJson(body) ?: throw IOException("Could not parse response")
+                val json = inputStream.bufferedReader().use { Json.parse(it).asObject() }
+                return TTVContent(json)
 
             } else {
                 throw HTTPException(status)
@@ -48,16 +40,44 @@ class TTVService {
     }
 }
 
-@JsonClass(generateAdapter = true)
-data class TTVContent(val status: Int,
+data class TTVContent(val status: Int?,
                  val message: String?,
-                 val timestamp: Date,
-                 val pagesCount: Int,
-                 val version: String,
-                 val pages: List<TTVPage>)
+                 val timestamp: Instant?,
+                 val pagesCount: Int?,
+                 val version: String?,
+                 val pages: List<TTVPage>) {
 
-@JsonClass(generateAdapter = true)
-data class TTVPage(val number: Int, val subpages: List<TTVSubpage>)
+    constructor(json: JsonObject) : this(
+            json.get("status")?.asInt(),
+            json.get("message")?.asString(),
+            json.get("timestamp")?.asTimestamp(),
+            json.get("pagesCount")?.asInt(),
+            json.get("version")?.asString(),
+            json.get("pages")?.asArray()?.map { TTVPage(it.asObject()) } ?: emptyList()
+    )
+}
 
-@JsonClass(generateAdapter = true)
-data class TTVSubpage(val number: Int, val timestamp: Date, val content: String)
+data class TTVPage(val number: Int, val subpages: List<TTVSubpage>) {
+
+    constructor(json: JsonObject) : this(
+            json.get("number").asInt(),
+            json.get("subpages").asArray().map { TTVSubpage(it.asObject()) }
+    )
+}
+
+data class TTVSubpage(val number: Int, val timestamp: Instant?, val content: String) {
+
+    constructor(json: JsonObject) : this(
+            json.get("number").asInt(),
+            json.get("timestamp")?.asTimestamp(),
+            json.get("content").asString()
+    )
+}
+
+fun JsonValue.asTimestamp(): Instant {
+    return DateTimeFormatter.ISO_DATE_TIME.parse(asString(), Instant::from)
+}
+
+fun JsonObject.add(name: String, value: Instant): JsonObject {
+    return add(name, DateTimeFormatter.ISO_INSTANT.format(value))
+}
