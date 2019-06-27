@@ -3,11 +3,11 @@ package fi.reuna.tekstitv
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
+import java.lang.Exception
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import javax.xml.ws.http.HTTPException
 
 class TTVService {
 
@@ -39,7 +39,7 @@ class TTVService {
                 return TTVContent(json)
 
             } else {
-                throw HTTPException(status)
+                throw HttpException(status, responseMessage)
             }
         }
     }
@@ -86,3 +86,5 @@ fun JsonValue.asTimestamp(): Instant {
 fun JsonObject.add(name: String, value: Instant): JsonObject {
     return add(name, DateTimeFormatter.ISO_INSTANT.format(value))
 }
+
+class HttpException(val status: Int, message: String?): Exception(message)

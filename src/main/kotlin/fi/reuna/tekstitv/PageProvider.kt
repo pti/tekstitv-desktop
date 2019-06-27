@@ -304,9 +304,9 @@ class PageProvider(private val listener: PageEventListener) {
             return try {
                 ttv.get(page, rel)
 
-            } catch (he: HTTPException) {
+            } catch (he: HttpException) {
 
-                if (he.statusCode == 404 && notFoundLocation != null) {
+                if (he.status == 404 && notFoundLocation != null) {
                     exec(notFoundLocation.page)
                 } else {
                     throw he
