@@ -1,6 +1,7 @@
 package fi.reuna.tekstitv
 
 import java.awt.Color
+import java.time.Instant
 
 data class Location(val page: Int, val sub: Int) {
 
@@ -31,14 +32,14 @@ data class Page(val number: Int, val subpages: List<Subpage>) {
 
     // Subpage numbers in the server response start from 1.
     // Subpage numbers aren't necessarily continuous / start from 1 => use indexes as subpage numbers instead.
-    constructor(src: TTVPage) : this(src.number, src.subpages.mapIndexed { index, sub -> Subpage(Location(src.number, index), sub.content) })
+    constructor(src: TTVPage) : this(src.number, src.subpages.mapIndexed { index, sub -> Subpage(Location(src.number, index), sub.content, sub.timestamp) })
 
     fun getSubpage(index: Int): Subpage? {
         return if (index >= 0 && index < subpages.size) subpages[index] else null
     }
 }
 
-data class Subpage(val location: Location, val content: String) {
+data class Subpage(val location: Location, val content: String, val timestamp: Instant?) {
 
     val pieces: Array<PagePiece> = pageContentToPieces(content).toTypedArray()
     val links: IntArray = parseLinks(pieces)

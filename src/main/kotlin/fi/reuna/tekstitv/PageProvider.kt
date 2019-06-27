@@ -43,7 +43,7 @@ class PageProvider(private val listener: PageEventListener) {
         jobs.stop()
     }
 
-    fun set(location: Location, checkCache: Boolean = true, autoReload: Boolean = false) {
+    fun set(location: Location, checkCache: Boolean = true, refresh: Boolean = false) {
         val cached = if (checkCache) location.checkCache() else null
 
         if (cached != null) {
@@ -51,7 +51,7 @@ class PageProvider(private val listener: PageEventListener) {
             handleCacheHit(cached)
 
         } else {
-            jobs.add(PageJob(location, autoReload = autoReload))
+            jobs.add(PageJob(location, refresh = refresh))
         }
     }
 
@@ -59,8 +59,8 @@ class PageProvider(private val listener: PageEventListener) {
         set(Location(page, 0))
     }
 
-    fun reload(autoReload: Boolean = false) {
-        set(currentLocation, checkCache = false, autoReload = autoReload)
+    fun refresh() {
+        set(currentLocation, checkCache = false, refresh = true)
     }
 
     fun back() = lock.withLock {
@@ -253,6 +253,7 @@ class PageProvider(private val listener: PageEventListener) {
                         }
 
                         val pages = body.pages.map { Page(it) }
+                        val old = cache[location.page]?.page
 
                         lock.withLock {
                             pages.forEach { cache[it.number] = CacheEntry(it) }
@@ -263,27 +264,30 @@ class PageProvider(private val listener: PageEventListener) {
                         if (ignoreId.get() == reqId.get()) {
                             Log.debug("ignore response to req #${reqId.get()} page=${location.page} d=${job.direction}")
 
+                        } else if (job.refresh && old != null && sub?.timestamp != null && sub.timestamp == old.getSubpage(location.sub)?.timestamp) {
+                            Log.debug("refresh: no change - ignore")
+
+                        } else if (job.refresh && sub?.location != currentLocation) {
+                            Log.debug("refresh: current location changed - ignore")
+
                         } else {
 
-                            if (!job.autoReload && sub != null) {
+                            if (!job.refresh && sub != null) {
                                 historyAdd(sub.location)
                             }
 
                             val event = when (sub) {
-                                null -> PageEvent.Failed(ErrorType.NOT_FOUND, null, location, job.autoReload)
+                                null -> PageEvent.Failed(ErrorType.NOT_FOUND, null, location, job.refresh)
                                 else -> PageEvent.Loaded(sub)
                             }
 
-                            // Ignore the auto reload response if current location has changed.
-                            if (!job.autoReload || event !is PageEvent.Loaded || event.subpage.location == currentLocation) {
-                                notify(event)
-                            }
+                            notify(event)
                         }
 
                     } catch (t: Throwable) {
                         Log.error("page request failed", t)
                         historyAdd(location)
-                        notify(t.asPageEvent(location, job.autoReload))
+                        notify(t.asPageEvent(location, job.refresh))
                     }
                 }
 
@@ -312,4 +316,4 @@ class PageProvider(private val listener: PageEventListener) {
     }
 }
 
-private data class PageJob(val location: Location? = null, val direction: Direction? = null, val autoReload: Boolean = false)
+private data class PageJob(val location: Location? = null, val direction: Direction? = null, val refresh: Boolean = false)

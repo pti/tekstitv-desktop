@@ -55,7 +55,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
     private fun restartAutoRefresh() {
 
         autoRefresher.start(autoRefreshInterval) {
-            provider.reload(autoReload = true)
+            provider.refresh()
         }
     }
 
@@ -98,7 +98,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
         if (e.isControlDown) {
 
             when (e.keyCode) {
-                KeyEvent.VK_R -> provider.reload()
+                KeyEvent.VK_R -> provider.refresh()
                 KeyEvent.VK_Q -> {
                     frame.saveWindowRectangle()
                     stop()
@@ -115,7 +115,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
                 KeyEvent.VK_UP -> provider.nextPage()
                 KeyEvent.VK_DOWN -> provider.prevPage()
                 KeyEvent.VK_BACK_SPACE -> provider.back()
-                KeyEvent.VK_F5 -> provider.reload()
+                KeyEvent.VK_F5 -> provider.refresh()
                 else -> return
             }
         }
@@ -131,7 +131,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
     }
 
     override fun windowDeiconified(e: WindowEvent?) {
-        provider.reload()
+        provider.refresh()
     }
 
     override fun windowClosing(e: WindowEvent?) {
