@@ -3,7 +3,6 @@ package fi.reuna.tekstitv
 import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonObject
 import com.eclipsesource.json.JsonValue
-import java.lang.Exception
 import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
@@ -15,7 +14,7 @@ class TTVService {
     private val userAgent: String
 
     init {
-        val cfg = ConfigurationProvider.cfg
+        val cfg = Configuration.instance
         baseUrl = "${cfg.baseUrl}${if (cfg.baseUrl.endsWith("/")) "" else "/"}ttvcontent/?a=${cfg.apiKey}&c=true"
 
         val pkg = javaClass.`package`

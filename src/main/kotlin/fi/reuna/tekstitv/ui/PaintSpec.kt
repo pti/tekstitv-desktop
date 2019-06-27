@@ -1,6 +1,6 @@
 package fi.reuna.tekstitv.ui
 
-import fi.reuna.tekstitv.ConfigurationProvider
+import fi.reuna.tekstitv.Configuration
 import java.awt.Color
 import java.awt.Font
 import java.awt.FontMetrics
@@ -19,7 +19,7 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
     val doubleHeightMultiplier = 2.0 // Defined in case one wants to disable use of double height lines at some point.
 
     init {
-        val cfg = ConfigurationProvider.cfg
+        val cfg = Configuration.instance
         font = fontForSize(g, cfg.fontFamily, width, height)
         fontMetrics = g.getFontMetrics(font)
         charWidth = fontMetrics.charWidth('0')

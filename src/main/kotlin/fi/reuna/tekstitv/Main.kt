@@ -13,7 +13,7 @@ fun main() {
     thread { NavigationHistory.instance }
 
     EventQueue.invokeLater {
-        val cfg = ConfigurationProvider.cfg
+        val cfg = Configuration.instance
         val frame = JFrame("Teksti-TV")
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
         frame.background = cfg.backgroundColor

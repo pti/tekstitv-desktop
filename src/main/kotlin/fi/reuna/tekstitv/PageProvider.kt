@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.swing.SwingUtilities
-import javax.xml.ws.http.HTTPException
 import kotlin.concurrent.thread
 import kotlin.concurrent.withLock
 
@@ -144,7 +143,7 @@ class PageProvider(private val listener: PageEventListener) {
     private fun Location.checkCache(): Subpage? = lock.withLock {
         var cacheEntry = cache[page]
 
-        if (cacheEntry != null && cacheEntry.added.since().toMinutes() > 10) {
+        if (cacheEntry != null && cacheEntry.added.since() > Configuration.instance.cacheExpires) {
             cache.remove(page)
             cacheEntry = null
         }
@@ -159,7 +158,7 @@ class PageProvider(private val listener: PageEventListener) {
     private fun Throwable.asPageEvent(location: Location, autoReload: Boolean): PageEvent {
         var type = ErrorType.OTHER
 
-        if (this is HTTPException && statusCode == 404) {
+        if (this is HttpException && status == 404) {
             type = ErrorType.NOT_FOUND
         }
 

@@ -1,6 +1,6 @@
 package fi.reuna.tekstitv.ui
 
-import fi.reuna.tekstitv.ConfigurationProvider
+import fi.reuna.tekstitv.Configuration
 import fi.reuna.tekstitv.NavigationHistory
 import fi.reuna.tekstitv.PageEvent
 import java.awt.*
@@ -58,7 +58,7 @@ class ShortcutsBar: JPanel() {
         val g2d = g as Graphics2D
         g2d.applyDesktopHints()
 
-        val cfg = ConfigurationProvider.cfg
+        val cfg = Configuration.instance
         val fontSize = ceil(height * cfg.shortcutFontSizer).toInt()
         g.font = Font(cfg.shortcutFontFamily, Font.PLAIN, fontSize)
         val fm = g.getFontMetrics(g.font)

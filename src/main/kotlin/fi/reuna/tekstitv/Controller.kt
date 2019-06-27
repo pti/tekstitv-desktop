@@ -20,7 +20,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
         Log.debug("begin")
         digitBuffer.listener = view.pageNumberView
 
-        val cfg = ConfigurationProvider.cfg
+        val cfg = Configuration.instance
         autoRefreshInterval = cfg.autoRefreshInterval
         Log.debug("got configuration")
 

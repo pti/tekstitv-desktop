@@ -1,8 +1,10 @@
 package fi.reuna.tekstitv.ui
 
-import fi.reuna.tekstitv.ConfigurationProvider
+import fi.reuna.tekstitv.Configuration
 import fi.reuna.tekstitv.DigitBufferListener
-import java.awt.*
+import java.awt.Font
+import java.awt.Graphics
+import java.awt.Graphics2D
 import javax.swing.JPanel
 import kotlin.math.ceil
 
@@ -18,7 +20,7 @@ class PageNumberView: JPanel(), DigitBufferListener {
         g2d.applyDesktopHints()
 
         if (content != null) {
-            val cfg = ConfigurationProvider.cfg
+            val cfg = Configuration.instance
             val fontSize = ceil(height * cfg.pageNumberFontSizer).toInt()
             g.font = Font(cfg.pageNumberFontFamily, Font.PLAIN, fontSize)
             val fm = g.getFontMetrics(g.font)
