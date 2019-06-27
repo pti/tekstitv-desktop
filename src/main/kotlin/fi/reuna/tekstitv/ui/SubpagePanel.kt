@@ -5,7 +5,7 @@ import fi.reuna.tekstitv.PageEvent
 import fi.reuna.tekstitv.Subpage
 import java.awt.Graphics
 import java.awt.Graphics2D
-import java.awt.RenderingHints
+import java.awt.Toolkit
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.math.ceil
@@ -67,7 +67,7 @@ class SubpagePanel : JPanel() {
         val spec = checkSpec(width, height)
 
         val g2d = g as Graphics2D
-        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+        g2d.applyDesktopHints()
 
         when (event) {
             is PageEvent.Loaded -> {
@@ -78,4 +78,13 @@ class SubpagePanel : JPanel() {
             }
         }
     }
+}
+
+fun Graphics2D.applyDesktopHints() {
+    // One can override the default hints by specifying the system property awt.useSystemAAFontSettings,
+    // e.g. java -Dawt.useSystemAAFontSettings=on -jar tekstitv-desktop.jar.
+    // All possible property values are defined here: https://docs.oracle.com/javase/8/docs/technotes/guides/2d/flags.html
+    val tk = Toolkit.getDefaultToolkit()
+    val dh = tk.getDesktopProperty("awt.font.desktophints") as? Map<*, *>
+    if (dh != null) addRenderingHints(dh)
 }
