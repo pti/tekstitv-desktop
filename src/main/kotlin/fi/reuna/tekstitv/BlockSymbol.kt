@@ -8,8 +8,8 @@ private val COL_X = doubleArrayOf(0.0, 0.5, 1.0)
 private val COL_Y = doubleArrayOf(0.0, 0.3, 0.7, 1.0)
 private const val SEPARATED_MARGIN_X = 0.12
 private const val SEPARATED_MARGIN_Y = 0.06
-private val SYMBOL_COUNT = BLOCK_SYMBOL_RANGE.endInclusive - BLOCK_SYMBOL_RANGE.start + 1
-private val SEPARATED_OFFSET = GraphicsMode.SEPARATED.range.start - BLOCK_SYMBOL_RANGE.start
+private val SYMBOL_COUNT = BLOCK_SYMBOL_RANGE.last - BLOCK_SYMBOL_RANGE.first + 1
+private val SEPARATED_OFFSET = GraphicsMode.SEPARATED.range.first - BLOCK_SYMBOL_RANGE.first
 
 object BlockSymbol {
 

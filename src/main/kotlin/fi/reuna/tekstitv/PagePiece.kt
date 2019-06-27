@@ -140,8 +140,8 @@ fun pageContentToPieces(content: String): List<PagePiece> {
     return ret
 }
 
-private val tagPattern = Pattern.compile("\\[[a-z]{3,4}\\]")
-private val capturingTagPattern = Pattern.compile("^\\[(([a-z])([a-z]{2,3}))\\]$")
+private val tagPattern = Pattern.compile("""\[[a-z]{3,4}]""")
+private val capturingTagPattern = Pattern.compile("""^\[(([a-z])([a-z]{2,3}))]$""")
 
 private fun String.lastChar(): String? {
     return if (length > 0) substring(length - 1) else null
@@ -155,7 +155,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
     var bg: Color? = null
     var fg: Color = defaultFg
     var graphicsMode: GraphicsMode? = null
-    var content = StringBuilder()
+    val content = StringBuilder()
     var doubleHeight = false
     val defaultSpaceChar = ' '
     var heldGraphicsChar = defaultSpaceChar
@@ -382,7 +382,7 @@ private fun GraphicsMode.convertChars(sb: StringBuilder): String {
             }
 
             v -= 0x20
-            v += range.start
+            v += range.first
             converted.append(v.toChar())
 
         } else if (c in BLOCK_SYMBOL_RANGE) {

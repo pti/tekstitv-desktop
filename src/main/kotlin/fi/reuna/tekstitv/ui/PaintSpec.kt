@@ -5,6 +5,7 @@ import java.awt.Color
 import java.awt.Font
 import java.awt.FontMetrics
 import java.awt.Graphics
+import kotlin.math.min
 
 class PaintSpec(g: Graphics, val width: Int, val height: Int) {
 
@@ -51,6 +52,6 @@ private fun fontForSize(g: Graphics, fontFamily: String, width: Int, height: Int
     val font = Font(fontFamily, Font.PLAIN, 1)
     val widthFit = calculateFittingFontSize(font) { MAX_CHARS_PER_LINE * it.charWidth('0') <= width }
     val heightFit = calculateFittingFontSize(font) { MAX_LINES_PER_PAGE * it.height <= height }
-    val size = Math.min(widthFit, heightFit)
+    val size = min(widthFit, heightFit)
     return font.deriveFont(size)
 }
