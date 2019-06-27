@@ -22,6 +22,7 @@ class PagePiece(var foreground: Color,
                 var background: Color?,
                 var mode: GraphicsMode?,
                 var content: String,
+                var lineStart: Boolean = false,
                 var lineEnd: Boolean = false,
                 var doubleHeight: Boolean = false)
 {
@@ -309,6 +310,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
     }
 
     pieceBreak() // In case line ended with spacing attribute tags.
+    pieces.firstOrNull()?.apply { lineStart = true }
     pieces.lastOrNull()?.apply { lineEnd = true }
     pieces.forEach { it.doubleHeight = doubleHeight }
     return pieces

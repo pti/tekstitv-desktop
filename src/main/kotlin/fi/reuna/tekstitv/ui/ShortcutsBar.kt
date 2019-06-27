@@ -19,21 +19,17 @@ class ShortcutsBar: JPanel() {
         if (event is PageEvent.Loaded) {
             val number = event.subpage.location.page
             val max = shortcutColors.size
-            shortcuts = NavigationHistory.instance.topHits(number, max).toTypedArray()
-            val remaining = max - shortcuts.size
+            val tmp = NavigationHistory.instance.topHits(number, max).toMutableList()
+            val remaining = max - tmp.size
 
             if (remaining > 0) {
-                val links = event.subpage.links
-                        .filter { !shortcuts.contains(it) }
+                event.subpage.links
+                        .filter { !tmp.contains(it) }
                         .take(remaining)
-
-                if (links.isNotEmpty()) {
-                    val tmp = linkedSetOf<Int>()
-                    tmp.addAll(shortcuts)
-                    tmp.addAll(links)
-                    shortcuts = tmp.toTypedArray()
-                }
+                        .forEach { tmp.add(it) }
             }
+
+            shortcuts = tmp.toTypedArray()
 
         } else {
             shortcuts = emptyArray()

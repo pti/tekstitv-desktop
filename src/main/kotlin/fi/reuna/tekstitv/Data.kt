@@ -47,30 +47,41 @@ data class Subpage(val location: Location, val content: String, val timestamp: I
 
 private fun parseLinks(pieces: Array<PagePiece>): IntArray {
     val defaultColor = Color.WHITE
-    val links = mutableSetOf<PageLink>()
-    val pageNumRegex = """(?=(?:\s|-|^)([1-8]\d{2})(?:\s|-|$))""".toRegex()
+    val links = arrayListOf<PageLink>()
+    val pageNumRegex = """(?=(?:\s|-|^)([1-8]\d{2})(?:\s|. |-|$))""".toRegex()
     // Lookahead is used to allow overlapping matches, e.g. in "331   345-346" match 331, 345 and 346.
 
-    for ((index, piece) in pieces.withIndex()) {
-        val pageNumbers = pageNumRegex.findAll(piece.content)
-                .map { it.groupValues[1].toInt() }
-                .toList()
+    fun importance(piece: PagePiece, index: Int): Int {
+        val next = if (index < pieces.size - 1) pieces[index + 1] else null
 
-        if (pageNumbers.isNotEmpty()) {
-            val next = if (index < pieces.size - 1) pieces[index + 1] else null
-
-            val importance = when {
-                piece.doubleHeight && piece.foreground != defaultColor && piece.background == null -> 100
-                piece.doubleHeight -> 90
-                next != null && piece.content.trim().length == 3 -> {
-                    if (piece.foreground != next.foreground && next.foreground != defaultColor) 10 else 1
-                }
-                else -> 1
+        return when {
+            piece.doubleHeight && piece.foreground != defaultColor && piece.background == null -> 100
+            piece.doubleHeight -> 90
+            next != null && piece.content.trim().length == 3 -> {
+                if (piece.foreground != next.foreground && next.foreground != defaultColor) 10 else 1
             }
+            else -> 1
+        }
+    }
 
-            pageNumbers
-                    .map { PageLink(it, importance) }
-                    .forEach { links.add(it) }
+    for ((index, piece) in pieces.withIndex()) {
+        val pieceImportance: Int by lazy { importance(piece, index) }
+
+        for (match in pageNumRegex.findAll(piece.content.trimStart())) {
+            val pageNumber = match.groupValues[1].toInt()
+
+            // Prefer numbers defined at the start of the line.
+            val positionImportance = if (piece.lineStart && match.groups[1]?.range?.start == 0) 1 else 0
+            val importance = pieceImportance + positionImportance
+
+            val existing = links.firstOrNull { it.page == pageNumber }
+
+            if (existing == null) {
+                links.add(PageLink(pageNumber, importance))
+
+            } else if (existing.importance < importance) {
+                existing.importance = importance
+            }
         }
     }
 
@@ -80,4 +91,4 @@ private fun parseLinks(pieces: Array<PagePiece>): IntArray {
             .toIntArray()
 }
 
-data class PageLink(val page: Int, val importance: Int)
+data class PageLink(val page: Int, var importance: Int)
