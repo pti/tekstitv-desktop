@@ -263,9 +263,6 @@ class PageProvider(private val listener: PageEventListener) {
                         if (ignoreId.get() == reqId.get()) {
                             Log.debug("ignore response to req #${reqId.get()} page=${location.page} d=${job.direction}")
 
-                        } else if (job.refresh && old != null && sub?.timestamp != null && sub.timestamp == old.getSubpage(location.sub)?.timestamp) {
-                            Log.debug("refresh: no change - ignore")
-
                         } else if (job.refresh && sub?.location != currentLocation) {
                             Log.debug("refresh: current location changed - ignore")
 
@@ -275,9 +272,11 @@ class PageProvider(private val listener: PageEventListener) {
                                 historyAdd(sub.location)
                             }
 
+                            val noChange = job.refresh && old != null && sub?.timestamp != null && sub.timestamp == old.getSubpage(location.sub)?.timestamp
+
                             val event = when (sub) {
                                 null -> PageEvent.Failed(ErrorType.NOT_FOUND, null, location, job.refresh)
-                                else -> PageEvent.Loaded(sub)
+                                else -> PageEvent.Loaded(sub, noChange = noChange)
                             }
 
                             notify(event)

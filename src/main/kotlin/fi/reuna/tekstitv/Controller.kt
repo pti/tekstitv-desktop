@@ -68,13 +68,17 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
         
         if (event is PageEvent.Failed && event.autoReload && view.pagePanel.latestEvent is PageEvent.Loaded) {
             // Failed to automatically refresh the page -> keep on displaying the currently loaded page
-        } else {
+
+        } else if (event !is PageEvent.Loaded || !event.noChange) {
+            // noChange is used to avoid repainting and to inform that another auto-refresh round can be starter
+            // (better to wait until the refresh request has ended instead of having a fixed repeating timer that
+            // ignores communication delays and thus in worst cases posts another request while the previous was
+            // still active).
             view.pagePanel.latestEvent = event
             view.shortcuts.update(event)
 
-            if (event is PageEvent.Loaded) {
-                digitBuffer.setCurrentPage(event.subpage.location.page)
-            }
+            val location = (event as? PageEvent.Loaded)?.subpage?.location ?: (event as? PageEvent.Failed)?.location
+            location?.let { digitBuffer.setCurrentPage(it.page) }
         }
     }
 
