@@ -87,3 +87,4 @@ fun JsonObject.add(name: String, value: Instant): JsonObject {
 }
 
 class HttpException(val status: Int, message: String?): Exception(message)
+class PageNotFoundException(val page: Int): Exception()

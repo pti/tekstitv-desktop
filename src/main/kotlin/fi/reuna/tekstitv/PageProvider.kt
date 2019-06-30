@@ -158,7 +158,7 @@ class PageProvider(private val listener: PageEventListener) {
     private fun Throwable.asPageEvent(location: Location, autoReload: Boolean): PageEvent {
         var type = ErrorType.OTHER
 
-        if (this is HttpException && status == 404) {
+        if (this is PageNotFoundException || (this is HttpException && status == 404)) {
             type = ErrorType.NOT_FOUND
         }
 
@@ -282,6 +282,13 @@ class PageProvider(private val listener: PageEventListener) {
                             notify(event)
                         }
 
+                    } catch (pnfe: PageNotFoundException) {
+                        val loc = Location(pnfe.page, 0)
+                        // loc can be different than location in case the 'notFoundLocation' was used.
+                        Log.error("page ${pnfe.page} not found")
+                        historyAdd(loc)
+                        notify(pnfe.asPageEvent(loc, job.refresh))
+
                     } catch (t: Throwable) {
                         Log.error("page request failed", t)
                         historyAdd(location)
@@ -304,8 +311,14 @@ class PageProvider(private val listener: PageEventListener) {
 
             } catch (he: HttpException) {
 
-                if (he.status == 404 && notFoundLocation != null) {
-                    exec(notFoundLocation.page)
+                if (he.status == 404) {
+
+                    if (notFoundLocation != null) {
+                        exec(notFoundLocation.page)
+                    } else {
+                        throw PageNotFoundException(page)
+                    }
+
                 } else {
                     throw he
                 }
