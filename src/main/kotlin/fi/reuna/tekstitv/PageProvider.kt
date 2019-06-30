@@ -258,7 +258,7 @@ class PageProvider(private val listener: PageEventListener) {
                             pages.forEach { cache[it.number] = CacheEntry(it) }
                         }
 
-                        val sub = pages.firstOrNull()?.getSubpage(location.sub)
+                        val sub = pages.firstOrNull()?.subpages?.firstOrNull()
 
                         if (ignoreId.get() == reqId.get()) {
                             Log.debug("ignore response to req #${reqId.get()} page=${location.page} d=${job.direction}")
