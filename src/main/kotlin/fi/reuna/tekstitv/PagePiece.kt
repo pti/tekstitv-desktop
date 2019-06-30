@@ -19,17 +19,13 @@ enum class GraphicsMode(val range: IntRange) {
 }
 
 class PagePiece(var foreground: Color,
-                var background: Color?,
+                val background: Color?,
                 var mode: GraphicsMode?,
                 var content: String,
                 var lineStart: Boolean = false,
                 var lineEnd: Boolean = false,
                 var doubleHeight: Boolean = false)
 {
-    fun prepend(content: String) {
-        this.content = content + this.content
-    }
-
     fun heightMultiplier(spec: PaintSpec): Double {
         return if (doubleHeight) spec.doubleHeightMultiplier else 1.0
     }
@@ -143,10 +139,6 @@ fun pageContentToPieces(content: String): List<PagePiece> {
 
 private val tagPattern = Pattern.compile("""\[[a-z]{3,4}]""")
 private val capturingTagPattern = Pattern.compile("""^\[(([a-z])([a-z]{2,3}))]$""")
-
-private fun String.lastChar(): String? {
-    return if (length > 0) substring(length - 1) else null
-}
 
 private fun lineToPieces(line: String): List<PagePiece> {
     val strings = splitByTags(line)

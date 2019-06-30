@@ -99,7 +99,7 @@ class PageProvider(private val listener: PageEventListener) {
         setSubpage(Direction.PREV)
     }
 
-    fun setSubpage(direction: Direction) {
+    private fun setSubpage(direction: Direction) {
         jobs.clearAndIgnoreActive()
         var event: PageEvent? = null
 
