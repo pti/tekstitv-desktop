@@ -43,6 +43,15 @@ data class Subpage(val location: Location, val content: String, val timestamp: I
 
     val pieces: Array<PagePiece> = pageContentToPieces(content).toTypedArray()
     val links: IntArray = parseLinks(pieces)
+
+    val emptyFirstColumn = pieces
+            .filter { it.lineStart && it.content.isNotEmpty() }
+            .map { it.background ?: Color.BLACK == Color.BLACK && it.content.first().isEmptySymbol(it.mode) }
+            .reduce { a, b -> a && b }
+}
+
+private fun Char.isEmptySymbol(mode: GraphicsMode?): Boolean {
+    return (this == ' ' || (mode != null && (this.toInt() - BLOCK_SYMBOL_OFFSET_START) == 0))
 }
 
 private fun parseLinks(pieces: Array<PagePiece>): IntArray {

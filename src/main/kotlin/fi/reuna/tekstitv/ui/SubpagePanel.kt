@@ -1,5 +1,6 @@
 package fi.reuna.tekstitv.ui
 
+import fi.reuna.tekstitv.Configuration
 import fi.reuna.tekstitv.ErrorType
 import fi.reuna.tekstitv.PageEvent
 import fi.reuna.tekstitv.Subpage
@@ -30,7 +31,10 @@ class SubpagePanel : JPanel() {
     }
 
     private fun paintSubpage(g: Graphics2D, spec: PaintSpec, subpage: Subpage, width: Int, height: Int) {
-        val x0 = (width - spec.contentWidth) / 2
+        // Most of the pages have an empty first column, and in those cases the content looks better when
+        // x0 is shifted a bit to the left (center align the assumed actual content).
+        val xAdjust = if (Configuration.instance.shiftEmptyFirstColumn && subpage.emptyFirstColumn) spec.charWidth else 0
+        val x0 = (width - spec.contentWidth - xAdjust) / 2
         var x = x0
         var y = (height - spec.contentHeight) / 2
 

@@ -24,7 +24,8 @@ class Configuration(
         val pageNumberFontFamily: String,
         val pageNumberFontSizer: Double,
         val pageNumberColorActive: Color,
-        val pageNumberColorInactive: Color
+        val pageNumberColorInactive: Color,
+        val shiftEmptyFirstColumn: Boolean
 ) {
 
     companion object {
@@ -54,7 +55,8 @@ class Configuration(
                         p.getProperty("pageNumberFontFamily") ?: "Fira Mono",
                         p.getDoubleProperty("pageNumberFontSizer", 0.65),
                         p.getColorProperty("pageNumberColorActive", Color(0xffffff))!!,
-                        p.getColorProperty("pageNumberColorInactive", Color(0xc0c0c0))!!
+                        p.getColorProperty("pageNumberColorInactive", Color(0xc0c0c0))!!,
+                        p.getIntProperty("shiftEmptyFirstColumn", 1) == 1
                 )
             }
         }
