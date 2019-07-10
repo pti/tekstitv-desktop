@@ -76,7 +76,7 @@ class DigitBuffer {
         content = if (lastPageNumber != null && buffer.isEmpty()) {
             lastPageNumber.toString()
         } else {
-            buffer.toString().padEnd(maxDigits, '.')
+            buffer.toString().padEnd(maxDigits, emptyChar)
         }
 
         listener?.onDigitBufferChanged(content, inputActive)

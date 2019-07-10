@@ -9,10 +9,6 @@ data class Location(val page: Int, val sub: Int) {
         return Location(page + direction.delta, 0)
     }
 
-    fun moveSubpage(delta: Int = 0): Location {
-        return Location(page, sub + delta)
-    }
-
     fun withSub(sub: Int): Location {
         return Location(page, sub)
     }
@@ -24,7 +20,11 @@ enum class ErrorType {
 }
 
 sealed class PageEvent {
-    data class Loaded(val subpage: Subpage, val cached: Boolean = false, val noChange: Boolean = false) : PageEvent()
+
+    data class Loaded(val subpage: Subpage, val cached: Boolean = false, val noChange: Boolean = false) : PageEvent() {
+        val location = subpage.location
+    }
+
     data class Failed(val type: ErrorType, val error: Throwable?, val location: Location, val autoReload: Boolean) : PageEvent()
 }
 
@@ -57,7 +57,7 @@ private fun Char.isEmptySymbol(mode: GraphicsMode?): Boolean {
 private fun parseLinks(pieces: Array<PagePiece>): IntArray {
     val defaultColor = Color.WHITE
     val links = arrayListOf<PageLink>()
-    val pageNumRegex = """(?=(?:\s|-|^)([1-8]\d{2})(?:\s|\. |-|$))""".toRegex()
+    val pageNumRegex = """(?=(?:\s|-|>|^)([1-8]\d{2})(?:\s|\. |-|$))""".toRegex()
     // Lookahead is used to allow overlapping matches, e.g. in "331   345-346" match 331, 345 and 346.
 
     fun importance(piece: PagePiece, index: Int): Int {

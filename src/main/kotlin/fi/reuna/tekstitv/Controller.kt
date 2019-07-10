@@ -9,7 +9,7 @@ import java.awt.event.WindowEvent
 import java.time.Duration
 import javax.swing.JFrame
 
-class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdapter(), PageEventListener {
+class Controller(private val view: MainView, private val frame: JFrame): KeyListener, WindowAdapter(), PageEventListener {
 
     private val provider = PageProvider(this)
     private val digitBuffer = DigitBuffer()
@@ -77,7 +77,7 @@ class Controller(val view: MainView, val frame: JFrame): KeyListener, WindowAdap
             view.pagePanel.latestEvent = event
             view.shortcuts.update(event)
 
-            val location = (event as? PageEvent.Loaded)?.subpage?.location ?: (event as? PageEvent.Failed)?.location
+            val location = (event as? PageEvent.Loaded)?.location ?: (event as? PageEvent.Failed)?.location
             location?.let { digitBuffer.setCurrentPage(it.page) }
         }
     }

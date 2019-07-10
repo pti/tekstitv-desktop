@@ -34,12 +34,13 @@ class PageProvider(private val listener: PageEventListener) {
     val currentLocation: Location
         get() = lock.withLock { history.lastOrNull() ?: Location(100, 0) }
 
-    val currentPage: Subpage?
-        get() = currentLocation.fromCache()
-
 
     fun stop() {
         jobs.stop()
+    }
+
+    fun get(page: Int): Page? {
+        return cache[page]?.page
     }
 
     fun set(location: Location, checkCache: Boolean = true, refresh: Boolean = false) {
@@ -92,14 +93,24 @@ class PageProvider(private val listener: PageEventListener) {
     }
 
     fun nextSubpage() {
-        setSubpage(Direction.NEXT)
+        setSubpage(direction = Direction.NEXT)
     }
 
     fun prevSubpage() {
-        setSubpage(Direction.PREV)
+        setSubpage(direction = Direction.PREV)
     }
 
-    private fun setSubpage(direction: Direction) {
+    /**
+     * Update the history so that for the current page the subpage number is the specified one.
+     * Enables jumping to the 'correct' subpage (instead of always the first one) when navigating back in the history.
+     */
+    fun notifySubpageChanged(newSubpage: Int) {
+        setSubpage(number = newSubpage, notify = false)
+    }
+
+    private fun setSubpage(number: Int? = null, direction: Direction? = null, notify: Boolean = true) {
+        assert(number != null || direction != null)
+        assert(number == null || number >= 0)
         jobs.clearAndIgnoreActive()
         var event: PageEvent? = null
 
@@ -108,8 +119,12 @@ class PageProvider(private val listener: PageEventListener) {
 
             if (page != null) {
                 val numSubs = page.subpages.size
-                var newSubpage = (currentLocation.sub + direction.delta) % numSubs
-                if (newSubpage < 0) newSubpage = numSubs - 1
+                var newSubpage = number
+
+                if (newSubpage == null) {
+                    newSubpage = (currentLocation.sub + direction!!.delta) % numSubs
+                    if (newSubpage < 0) newSubpage = numSubs - 1
+                }
 
                 // Instead of adding another instance of the current page to the history stack, replace page's current instance with updated subpage. Quicker to move backwards in history this way.
                 currentLocation.withSub(newSubpage).fromCache()?.let {
@@ -120,7 +135,7 @@ class PageProvider(private val listener: PageEventListener) {
             }
         }
 
-        event?.let { notify(it) }
+        if (notify) event?.let { notify(it) }
     }
 
     private fun handleCacheHit(cached: Subpage) {

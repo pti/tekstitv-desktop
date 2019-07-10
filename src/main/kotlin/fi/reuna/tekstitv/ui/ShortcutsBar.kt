@@ -17,7 +17,7 @@ class ShortcutsBar: JPanel() {
     fun update(event: PageEvent?) {
 
         if (event is PageEvent.Loaded) {
-            val number = event.subpage.location.page
+            val number = event.location.page
             val max = shortcutColors.size
             val tmp = NavigationHistory.instance.topHits(number, max).toMutableList()
             val remaining = max - tmp.size
