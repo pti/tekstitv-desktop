@@ -23,7 +23,7 @@ class ShortcutsBar: JPanel() {
             val remaining = max - tmp.size
 
             if (remaining > 0) {
-                event.subpage.links
+                event.subpage.uniqueLinks
                         .filter { !tmp.contains(it) }
                         .take(remaining)
                         .forEach { tmp.add(it) }

@@ -1,15 +1,13 @@
 package fi.reuna.tekstitv
 
 import fi.reuna.tekstitv.ui.MainView
+import fi.reuna.tekstitv.ui.PageLinkListener
 import fi.reuna.tekstitv.ui.saveWindowRectangle
-import java.awt.event.KeyEvent
-import java.awt.event.KeyListener
-import java.awt.event.WindowAdapter
-import java.awt.event.WindowEvent
+import java.awt.event.*
 import java.time.Duration
 import javax.swing.JFrame
 
-class Controller(private val view: MainView, private val frame: JFrame): KeyListener, WindowAdapter(), PageEventListener {
+class Controller(private val view: MainView, private val frame: JFrame): KeyListener, WindowAdapter(), PageEventListener, PageLinkListener {
 
     private val provider = PageProvider(this)
     private val digitBuffer = DigitBuffer()
@@ -31,11 +29,13 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
 
         frame.addKeyListener(this)
         frame.addWindowListener(this)
+        view.pagePanel.pageLinkListener = this
     }
 
     fun stop() {
         frame.removeKeyListener(this)
         frame.removeWindowListener(this)
+        view.pagePanel.stop()
         autoRefresher.destroy()
         digitBuffer.close()
         NavigationHistory.instance.close()
@@ -140,5 +140,9 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
 
     override fun windowClosing(e: WindowEvent?) {
         frame.saveWindowRectangle()
+    }
+
+    override fun onPageLinkClicked(link: PageLink) {
+        provider.set(link.page)
     }
 }

@@ -1,22 +1,47 @@
 package fi.reuna.tekstitv.ui
 
-import fi.reuna.tekstitv.Configuration
-import fi.reuna.tekstitv.ErrorType
-import fi.reuna.tekstitv.PageEvent
-import fi.reuna.tekstitv.Subpage
+import fi.reuna.tekstitv.*
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Rectangle
 import java.awt.Toolkit
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.math.ceil
 
+interface PageLinkListener {
+    fun onPageLinkClicked(link: PageLink)
+}
+
 class SubpagePanel : JPanel() {
 
     private var spec: PaintSpec? = null
+    private var currentSubpage: Subpage? = null
+    private var drawRect = Rectangle()
+    private var focusedLink: PageLink? = null
+    private var focusedLinkRect: Rectangle? = null // Link rectangle in pixel coordinates.
+    private val mouseAdapter = MouseHandler()
+
+    var pageLinkListener: PageLinkListener? = null
+
+    init {
+        if (Configuration.instance.mouseEnabled) {
+            addMouseMotionListener(mouseAdapter)
+            addMouseListener(mouseAdapter)
+        }
+    }
+
+    fun stop() {
+        pageLinkListener = null
+        removeMouseMotionListener(mouseAdapter)
+    }
 
     var latestEvent: PageEvent? = null
         set(value) {
+            focusedLinkRect = null
+            focusedLink = null
             field = value
             repaint()
         }
@@ -37,6 +62,7 @@ class SubpagePanel : JPanel() {
         val x0 = (width - spec.contentWidth - xAdjust) / 2
         var x = x0
         var y = (height - spec.contentHeight) / 2
+        drawRect.setBounds(x0, y, spec.contentWidth, spec.contentHeight)
 
         g.font = spec.font
 
@@ -47,6 +73,11 @@ class SubpagePanel : JPanel() {
                 y += ceil(spec.lineHeight * piece.heightMultiplier(spec)).toInt()
                 x = x0
             }
+        }
+
+        if (focusedLinkRect != null) {
+            g.color = Configuration.instance.linkFocusColor
+            g.fill(focusedLinkRect)
         }
     }
 
@@ -75,11 +106,57 @@ class SubpagePanel : JPanel() {
 
         when (event) {
             is PageEvent.Loaded -> {
+                currentSubpage = event.subpage
                 paintSubpage(g2d, spec, event.subpage, width, height)
             }
             is PageEvent.Failed -> {
+                currentSubpage = null
                 paintErrorMessage(g2d, spec, event, width, height)
             }
+        }
+    }
+
+    inner class MouseHandler: MouseAdapter() {
+
+        override fun mouseMoved(e: MouseEvent?) {
+            val sub = currentSubpage
+            val spec = spec
+
+            if (e == null || sub == null || spec == null) return
+
+            val cx = (e.x - drawRect.x) / spec.charWidth
+            val cy = (e.y - drawRect.y) / spec.lineHeight
+
+            if (focusedLinkRect?.contains(cx, cy) == true) {
+                return
+            }
+
+            val link = sub.findLink(cx, cy)
+
+            if (link?.rect != focusedLinkRect) {
+                focusedLink = link
+                focusedLinkRect = link?.rect?.let {
+                    Rectangle(drawRect.x + it.x * spec.charWidth,
+                            drawRect.y + it.y * spec.charHeight,
+                            it.width * spec.charWidth,
+                            it.height * spec.charHeight)
+                }
+
+                repaint()
+            }
+        }
+
+        override fun mouseExited(e: MouseEvent?) {
+
+            if (focusedLinkRect != null) {
+                focusedLinkRect = null
+                focusedLink = null
+                repaint()
+            }
+        }
+
+        override fun mouseClicked(e: MouseEvent?) {
+            focusedLink?.let { pageLinkListener?.onPageLinkClicked(it) }
         }
     }
 }

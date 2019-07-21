@@ -25,7 +25,9 @@ class Configuration(
         val pageNumberFontSizer: Double,
         val pageNumberColorActive: Color,
         val pageNumberColorInactive: Color,
-        val shiftEmptyFirstColumn: Boolean
+        val shiftEmptyFirstColumn: Boolean,
+        val linkFocusColor: Color,
+        val mouseEnabled: Boolean
 ) {
 
     companion object {
@@ -56,7 +58,9 @@ class Configuration(
                         p.getDoubleProperty("pageNumberFontSizer", 0.65),
                         p.getColorProperty("pageNumberColorActive", Color(0xffffff))!!,
                         p.getColorProperty("pageNumberColorInactive", Color(0xc0c0c0))!!,
-                        p.getIntProperty("shiftEmptyFirstColumn", 1) == 1
+                        p.getIntProperty("shiftEmptyFirstColumn", 1) == 1,
+                        p.getColorProperty("linkFocusColor", Color(0x30ffffff, true))!!,
+                        p.getIntProperty("mouseEnabled", 1) == 1
                 )
             }
         }
@@ -68,7 +72,7 @@ fun Properties.getIntProperty(name: String, defaultValue: Int? = null, radix: In
 }
 
 private fun Properties.getColorProperty(name: String, defaultValue: Color? = null): Color? {
-    return getIntProperty(name, defaultValue?.rgb, radix = 16)?.let { Color(it) }
+    return getIntProperty(name, null, radix = 16)?.let { Color(it, true) } ?: defaultValue
 }
 
 private fun Properties.getDurationProperty(name: String, unit: TemporalUnit, defaultValue: Duration): Duration {
