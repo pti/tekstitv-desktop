@@ -30,12 +30,14 @@ class PageProvider(private val listener: PageEventListener) {
     private val history = Stack<Location>()
     private val cache = mutableMapOf<Int, CacheEntry>()
     private val jobs = PageJobConsumer()
+    private val refreshDelayer by lazy { Debouncer() }
 
     val currentLocation: Location
         get() = lock.withLock { history.lastOrNull() ?: Location(100, 0) }
 
 
     fun stop() {
+        refreshDelayer.stop()
         jobs.stop()
     }
 
@@ -44,6 +46,7 @@ class PageProvider(private val listener: PageEventListener) {
     }
 
     fun set(location: Location, checkCache: Boolean = true, refresh: Boolean = false) {
+        refreshDelayer.stop()
         val cached = if (checkCache) location.checkCache() else null
 
         if (cached != null) {
@@ -85,10 +88,12 @@ class PageProvider(private val listener: PageEventListener) {
         // User might press next/prev repeatedly. If one would just do the request directly, then the same page
         // request might get triggered. To avoid that and to allow the user to move multiple pages by pressing
         // next/prev rapidly, a queue is needed for the next/prev requests. Consume a request at a time.
+        refreshDelayer.stop()
         jobs.add(PageJob(direction = Direction.NEXT))
     }
 
     fun prevPage() {
+        refreshDelayer.stop()
         jobs.add(PageJob(direction = Direction.PREV))
     }
 
@@ -156,11 +161,20 @@ class PageProvider(private val listener: PageEventListener) {
     }
 
     private fun Location.checkCache(): Subpage? = lock.withLock {
-        var cacheEntry = cache[page]
+        val cacheEntry = cache[page]
 
-        if (cacheEntry != null && cacheEntry.added.since() > Configuration.instance.cacheExpires) {
-            cache.remove(page)
-            cacheEntry = null
+        if (cacheEntry != null) {
+            // Always return the cached version immediately and automatically refresh after delay if necessary.
+            // This way the app reacts to page selection (absolute or relative) immediately which is
+            // especially nice when browsing back in the history and the connection isn't that fast.
+            if (cacheEntry.added.since() >= Configuration.instance.cacheExpires) {
+                refreshDelayer.start(Configuration.instance.autoRefreshDelay) {
+                    if (currentLocation == this) {
+                        Log.debug("delayed refresh of page ${this.page}")
+                        refresh()
+                    }
+                }
+            }
         }
 
         return cacheEntry?.page?.getSubpage(sub)

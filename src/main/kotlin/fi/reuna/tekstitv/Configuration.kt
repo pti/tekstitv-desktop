@@ -14,6 +14,7 @@ class Configuration(
         val startPage: Int,
         val backgroundColor: Color,
         val autoRefreshInterval: Duration,
+        val autoRefreshDelay: Duration,
         val cacheExpires: Duration,
         val margin: Int,
         val fontFamily: String,
@@ -47,6 +48,7 @@ class Configuration(
                         p.getIntProperty("startPage", 100)!!,
                         p.getColorProperty("backgroundColor", Color.BLACK)!!,
                         p.getDurationProperty("autoRefreshInterval", ChronoUnit.SECONDS, Duration.ofSeconds(60)),
+                        p.getDurationProperty("autoRefreshDelay", ChronoUnit.MILLIS, Duration.ofMillis(750)),
                         p.getDurationProperty("cacheExpires", ChronoUnit.SECONDS, Duration.ofSeconds(60)),
                         p.getIntProperty("margin", 10)!!,
                         p.getProperty("fontFamily") ?: "Fira Mono",
@@ -76,7 +78,8 @@ private fun Properties.getColorProperty(name: String, defaultValue: Color? = nul
 }
 
 private fun Properties.getDurationProperty(name: String, unit: TemporalUnit, defaultValue: Duration): Duration {
-    return Duration.of(getIntProperty(name, defaultValue.get(unit).toInt())!!.toLong(), unit)
+    val value = getIntProperty(name)?.toLong()
+    return if (value != null) Duration.of(value, unit) else defaultValue
 }
 
 private fun Properties.getDoubleProperty(name: String, defaultValue: Double): Double {
