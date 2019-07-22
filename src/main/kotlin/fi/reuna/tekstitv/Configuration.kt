@@ -2,11 +2,16 @@ package fi.reuna.tekstitv
 
 import java.awt.Color
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalUnit
 import java.util.*
+
+fun propertiesPath(name: String): Path {
+    return Paths.get(System.getProperty("user.home"), ".tekstitv", name)
+}
 
 class Configuration(
         val baseUrl: String,
@@ -36,7 +41,7 @@ class Configuration(
         val instance: Configuration
 
         init {
-            val path = System.getProperty("tekstitv.cfg")?.let { Paths.get(it) } ?: Paths.get(System.getProperty("user.home"), ".tekstitv", "configuration.properties")
+            val path = System.getProperty("tekstitv.cfg")?.let { Paths.get(it) } ?: propertiesPath("configuration.properties")
 
             instance = Files.newBufferedReader(path).use { reader ->
                 val p = Properties()

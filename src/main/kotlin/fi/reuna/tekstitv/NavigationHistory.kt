@@ -4,19 +4,17 @@ import com.eclipsesource.json.Json
 import com.eclipsesource.json.JsonArray
 import com.eclipsesource.json.JsonObject
 import java.io.FileOutputStream
-import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-class NavigationHistory {
+class NavigationHistory private constructor() {
 
     private var hitsByPage = mutableMapOf<Int, MutableList<PageHit>>()
 
-    private val file = System.getProperty("tekstitv.history")?.let { Paths.get(it) }
-            ?: Paths.get(System.getProperty("user.home"), ".tekstitv", "history.json")
+    private val file = System.getProperty("tekstitv.history")?.let { Paths.get(it) } ?: propertiesPath("history.json")
 
     private val saver = Debouncer()
     private var changed = AtomicBoolean(false)
@@ -55,9 +53,11 @@ class NavigationHistory {
     /**
      * Return pages most visited from page [source].
      */
-    fun topHits(source: Int, count: Int, minCount: Int? = 3, minOccurred: Instant? = Instant.now().minus(7, ChronoUnit.DAYS)): List<Int> {
+    fun topHits(source: Int, count: Int, minCount: Int? = 3, minOccurred: Instant? = Instant.now().minus(7, ChronoUnit.DAYS), ignore: Array<Int>? = null): List<Int> {
+        if (count <= 0) return emptyList()
         val all = hitsByPage[source] ?: emptyList<PageHit>()
         return all.asSequence()
+                .filter { ignore == null || !ignore.contains(it.destination) }
                 .filter { minOccurred == null || it.occurred.isAfter(minOccurred) }
                 .groupBy { it.destination }
                 .map { it.value }

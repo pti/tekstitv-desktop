@@ -41,6 +41,10 @@ data class Page(val number: Int, val subpages: List<Subpage>) {
 }
 
 const val CHARS_IN_LINK = 3
+const val INVALID_PAGE = 0
+const val MIN_PAGE = 100
+const val MAX_PAGE = 899
+val PAGE_RANGE = MIN_PAGE..MAX_PAGE
 
 data class Subpage(val location: Location, val content: String, val timestamp: Instant?) {
 

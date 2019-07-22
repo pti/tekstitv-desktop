@@ -1,8 +1,6 @@
 package fi.reuna.tekstitv.ui
 
-import fi.reuna.tekstitv.Configuration
-import fi.reuna.tekstitv.NavigationHistory
-import fi.reuna.tekstitv.PageEvent
+import fi.reuna.tekstitv.*
 import java.awt.*
 import javax.swing.JPanel
 import kotlin.math.ceil
@@ -11,25 +9,41 @@ class ShortcutsBar: JPanel() {
 
     private val shortcutColors = arrayOf(Color.RED.darker(), Color.GREEN.darker(), Color.YELLOW.darker(), Color.BLUE.brighter())
     private val shortcutChars = charArrayOf('r', 'g', 'y', 'b')
+    private val favorites = Favorites()
 
     private var shortcuts: Array<Int> = emptyArray()
+
+    private fun Array<Int>.place(page: Int): Int {
+        val index = indexOfFirst { it == INVALID_PAGE }
+        if (index != -1) this[index] = page
+        return index
+    }
 
     fun update(event: PageEvent?) {
 
         if (event is PageEvent.Loaded) {
             val number = event.location.page
-            val max = shortcutColors.size
-            val tmp = NavigationHistory.instance.topHits(number, max).toMutableList()
-            val remaining = max - tmp.size
+            val tmp = Array(shortcutColors.size) { INVALID_PAGE }
+            var remaining = tmp.size
+
+            favorites.getFavorites(number)?.take(tmp.size)?.forEachIndexed { index, i ->
+                tmp[index] = i
+                if (i != INVALID_PAGE) remaining--
+            }
+
+            NavigationHistory.instance.topHits(number, remaining, ignore = tmp).forEach {
+                tmp.place(it)
+                remaining--
+            }
 
             if (remaining > 0) {
                 event.subpage.uniqueLinks
                         .filter { !tmp.contains(it) }
                         .take(remaining)
-                        .forEach { tmp.add(it) }
+                        .forEach { tmp.place(it) }
             }
 
-            shortcuts = tmp.toTypedArray()
+            shortcuts = tmp
 
         } else {
             shortcuts = emptyArray()
@@ -74,15 +88,21 @@ class ShortcutsBar: JPanel() {
         val textY = y + (shortcutH - fm.height) / 2 + fm.ascent
 
         for ((index, value) in shortcuts.withIndex()) {
-            g.color = shortcutColors[index]
-            g.fillRect(x, y, colorW, shortcutH)
-            x += colorW
 
-            g.color = bg
-            g.fillRect(x, y, shortcutContentW, shortcutH)
+            if (value != INVALID_PAGE) {
+                g.color = shortcutColors[index]
+                g.fillRect(x, y, colorW, shortcutH)
+                x += colorW
 
-            g.color = fg
-            g.drawString(value.toString(), x + (shortcutContentW - approxMaxTextWidth) / 2, textY)
+                g.color = bg
+                g.fillRect(x, y, shortcutContentW, shortcutH)
+
+                g.color = fg
+                g.drawString(value.toString(), x + (shortcutContentW - approxMaxTextWidth) / 2, textY)
+
+            } else {
+                x += colorW
+            }
 
             x += shortcutContentW + spacing
         }
