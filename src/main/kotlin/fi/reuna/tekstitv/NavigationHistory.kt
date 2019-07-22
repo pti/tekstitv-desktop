@@ -19,17 +19,21 @@ class NavigationHistory private constructor() {
     private val saver = Debouncer()
     private var changed = AtomicBoolean(false)
     private var saving = AtomicBoolean(false)
+    private val enabled = Configuration.instance.navigationHistoryEnabled
 
     init {
-        load()
 
-        Runtime.getRuntime().addShutdownHook(Thread {
-            saver.destroy()
+        if (enabled) {
+            load()
 
-            if (changed.get() && !saving.get()) {
-                save()
-            }
-        })
+            Runtime.getRuntime().addShutdownHook(Thread {
+                saver.destroy()
+
+                if (changed.get() && !saving.get()) {
+                    save()
+                }
+            })
+        }
     }
 
     fun close() {
@@ -37,6 +41,8 @@ class NavigationHistory private constructor() {
     }
 
     fun add(source: Int, destination: Int) {
+        if (!enabled) return
+
         var hits = hitsByPage[source]
 
         if (hits == null) {
@@ -54,7 +60,7 @@ class NavigationHistory private constructor() {
      * Return pages most visited from page [source].
      */
     fun topHits(source: Int, count: Int, minCount: Int? = 3, minOccurred: Instant? = Instant.now().minus(7, ChronoUnit.DAYS), ignore: Array<Int>? = null): List<Int> {
-        if (count <= 0) return emptyList()
+        if (!enabled || count <= 0) return emptyList()
         val all = hitsByPage[source] ?: emptyList<PageHit>()
         return all.asSequence()
                 .filter { ignore == null || !ignore.contains(it.destination) }

@@ -33,7 +33,8 @@ class Configuration(
         val pageNumberColorInactive: Color,
         val shiftEmptyFirstColumn: Boolean,
         val linkFocusColor: Color,
-        val mouseEnabled: Boolean
+        val mouseEnabled: Boolean,
+        val navigationHistoryEnabled: Boolean
 ) {
 
     companion object {
@@ -67,7 +68,8 @@ class Configuration(
                         p.getColorProperty("pageNumberColorInactive", Color(0xc0c0c0))!!,
                         p.getIntProperty("shiftEmptyFirstColumn", 1) == 1,
                         p.getColorProperty("linkFocusColor", Color(0x30ffffff, true))!!,
-                        p.getIntProperty("mouseEnabled", 1) == 1
+                        p.getIntProperty("mouseEnabled", 1) == 1,
+                        p.getIntProperty("navigationHistoryEnabled", 1) == 1
                 )
             }
         }
