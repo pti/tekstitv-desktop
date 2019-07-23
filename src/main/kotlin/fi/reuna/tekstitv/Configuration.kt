@@ -34,7 +34,8 @@ class Configuration(
         val shiftEmptyFirstColumn: Boolean,
         val linkFocusColor: Color,
         val mouseEnabled: Boolean,
-        val navigationHistoryEnabled: Boolean
+        val navigationHistoryEnabled: Boolean,
+        val loadingMessageDelay: Duration
 ) {
 
     companion object {
@@ -69,7 +70,8 @@ class Configuration(
                         p.getIntProperty("shiftEmptyFirstColumn", 1) == 1,
                         p.getColorProperty("linkFocusColor", Color(0x30ffffff, true))!!,
                         p.getIntProperty("mouseEnabled", 1) == 1,
-                        p.getIntProperty("navigationHistoryEnabled", 1) == 1
+                        p.getIntProperty("navigationHistoryEnabled", 1) == 1,
+                        p.getDurationProperty("loadingMessageDelay", ChronoUnit.MILLIS, Duration.ofMillis(500))
                 )
             }
         }

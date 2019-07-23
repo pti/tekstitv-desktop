@@ -22,12 +22,21 @@ enum class ErrorType {
 
 sealed class PageEvent {
 
+    /** Loading is followed by either Loaded, Failed or Ignored. */
+    data class Loading(val req: PageRequest) : PageEvent()
+
+    data class Ignored(val req: PageRequest) : PageEvent()
+
     data class Loaded(val subpage: Subpage, val cached: Boolean = false, val noChange: Boolean = false) : PageEvent() {
         val location = subpage.location
     }
 
-    data class Failed(val type: ErrorType, val error: Throwable?, val location: Location, val autoReload: Boolean) : PageEvent()
+    data class Failed(val type: ErrorType, val error: Throwable?, val req: PageRequest) : PageEvent()
 }
+
+data class PageRequest(val location: Location, val direction: Direction? = null, val refresh: Boolean = false)
+
+class PageRequestException(status: Int, message: String?, val request: PageRequest): HttpException(status, message)
 
 data class Page(val number: Int, val subpages: List<Subpage>) {
 

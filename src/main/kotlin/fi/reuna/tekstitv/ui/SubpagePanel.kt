@@ -81,18 +81,12 @@ class SubpagePanel : JPanel() {
         }
     }
 
-    private fun paintErrorMessage(g: Graphics2D, spec: PaintSpec, event: PageEvent.Failed, width: Int, height: Int) {
-
-        val errorMessage = when (event.type) {
-            ErrorType.NOT_FOUND -> "Page ${event.location.page} not found"
-            else -> "Error loading page ${event.location.page}"
-        }
-
-        val textWidth = SwingUtilities.computeStringWidth(spec.fontMetrics, errorMessage)
+    private fun paintMessage(g: Graphics2D, spec: PaintSpec, message: String, width: Int, height: Int) {
+        val textWidth = SwingUtilities.computeStringWidth(spec.fontMetrics, message)
         val textHeight = spec.fontMetrics.height
         g.font = spec.font
         g.color = spec.foreground
-        g.drawString(errorMessage, (width - textWidth) / 2, (height - textHeight) / 2)
+        g.drawString(message, (width - textWidth) / 2, (height - textHeight) / 2)
     }
 
     override fun paintComponent(g: Graphics) {
@@ -110,10 +104,20 @@ class SubpagePanel : JPanel() {
                 paintSubpage(g2d, spec, event.subpage, width, height)
             }
             is PageEvent.Failed -> {
-                currentSubpage = null
-                paintErrorMessage(g2d, spec, event, width, height)
+                paintMessage(g2d, spec, event.getErrorMessage(), width, height)
+            }
+            is PageEvent.Ignored -> {
+                currentSubpage?.let { paintSubpage(g2d, spec, it, width, height) }
+            }
+            is PageEvent.Loading -> {
+                paintMessage(g2d, spec, "Loading page ${event.req.location.page}", width, height)
             }
         }
+    }
+
+    private fun PageEvent.Failed.getErrorMessage(): String = when (type) {
+        ErrorType.NOT_FOUND -> "Page ${req.location.page} not found"
+        else -> "Error loading page ${req.location.page}"
     }
 
     inner class MouseHandler: MouseAdapter() {

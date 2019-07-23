@@ -184,14 +184,14 @@ class PageProvider(private val listener: PageEventListener) {
         return Duration.between(this, Instant.now())
     }
 
-    private fun Throwable.asPageEvent(location: Location, autoReload: Boolean): PageEvent {
+    private fun Throwable.asPageEvent(req: PageRequest): PageEvent {
         var type = ErrorType.OTHER
 
-        if (this is PageNotFoundException || (this is HttpException && status == 404)) {
+        if (this is HttpException && status == 404) {
             type = ErrorType.NOT_FOUND
         }
 
-        return PageEvent.Failed(type, this, location, autoReload)
+        return PageEvent.Failed(type, this, req)
     }
 
     private fun notify(event: PageEvent) {
@@ -257,31 +257,24 @@ class PageProvider(private val listener: PageEventListener) {
                         break
                     }
 
-                    val location = job.location ?: currentLocation
+                    val req = PageRequest(job.location ?: currentLocation, job.direction, job.refresh)
 
                     try {
                         reqId.incrementAndGet()
 
-                        val body = if (job.direction != null) {
+                        if (req.direction != null) {
                             // TODO some kind of linked list to cache so that we can check for other than just the immediate page
-                            val hit = location.move(job.direction).checkCache()
+                            val hit = req.location.move(req.direction).checkCache()
 
                             if (hit != null) {
                                 handleCacheHit(hit)
                                 continue
                             }
-
-                            // If the relativeTo points to a non-existing page, then nextPage/prevPage requests always fail.
-                            // If that happens, simply try to request the current page +- 1. This is useful in case
-                            // the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
-                            exec(location.page, job.direction, notFoundLocation = location.move(job.direction))
-
-                        } else {
-                            exec(job.location!!.page)
                         }
 
+                        val body = exec(req)
                         val pages = body.pages.map { Page(it) }
-                        val old = cache[location.page]?.page
+                        val old = cache[req.location.page]?.page
 
                         lock.withLock {
                             pages.forEach { cache[it.number] = CacheEntry(it) }
@@ -290,38 +283,35 @@ class PageProvider(private val listener: PageEventListener) {
                         val sub = pages.firstOrNull()?.subpages?.firstOrNull()
 
                         if (ignoreId.get() == reqId.get()) {
-                            Log.debug("ignore response to req #${reqId.get()} page=${location.page} d=${job.direction}")
+                            Log.debug("ignore response to req #${reqId.get()} page=${req.location.page} d=${req.direction}")
+                            notify(PageEvent.Ignored(req))
 
-                        } else if (job.refresh && sub?.location != currentLocation) {
+                        } else if (req.refresh && sub?.location != currentLocation) {
                             Log.debug("refresh: current location changed - ignore")
+                            notify(PageEvent.Ignored(req))
 
                         } else {
 
-                            if (!job.refresh && sub != null) {
+                            if (!req.refresh && sub != null) {
                                 historyAdd(sub.location)
                             }
 
-                            val noChange = job.refresh && old != null && sub?.timestamp != null && sub.timestamp == old.getSubpage(location.sub)?.timestamp
+                            val noChange = req.refresh && old != null && sub?.timestamp != null && sub.timestamp == old.getSubpage(req.location.sub)?.timestamp
 
                             val event = when (sub) {
-                                null -> PageEvent.Failed(ErrorType.NOT_FOUND, null, location, job.refresh)
+                                null -> PageEvent.Failed(ErrorType.NOT_FOUND, null, req)
                                 else -> PageEvent.Loaded(sub, noChange = noChange)
                             }
 
                             notify(event)
                         }
 
-                    } catch (pnfe: PageNotFoundException) {
-                        val loc = Location(pnfe.page, 0)
-                        // loc can be different than location in case the 'notFoundLocation' was used.
-                        Log.error("page ${pnfe.page} not found")
-                        historyAdd(loc)
-                        notify(pnfe.asPageEvent(loc, job.refresh))
+                    } catch (pre: PageRequestException) {
+                        // Request in the exception instance might have changed from 'req' (if relative req failed).
+                        handleRequestFailure(pre.request, pre)
 
                     } catch (t: Throwable) {
-                        Log.error("page request failed", t)
-                        historyAdd(location)
-                        notify(t.asPageEvent(location, job.refresh))
+                        handleRequestFailure(req, t)
                     }
                 }
 
@@ -333,19 +323,29 @@ class PageProvider(private val listener: PageEventListener) {
             }
         }
 
-        private fun exec(page: Int, rel: Direction? = null, notFoundLocation: Location? = null): TTVContent {
+        private fun handleRequestFailure(req: PageRequest, t: Throwable) {
+            Log.error("page request failed", t)
+            historyAdd(req.location)
+            notify(t.asPageEvent(req))
+        }
+
+        private fun exec(req: PageRequest): TTVContent {
 
             return try {
-                ttv.get(page, rel)
+                notify(PageEvent.Loading(req))
+                ttv.get(req.location.page, req.direction)
 
             } catch (he: HttpException) {
 
                 if (he.status == 404) {
 
-                    if (notFoundLocation != null) {
-                        exec(notFoundLocation.page)
+                    if (req.direction != null) {
+                        // If the relativeTo points to a non-existing page, then nextPage/prevPage requests always fail.
+                        // If that happens, simply try to request the current page +- 1. This is useful in case
+                        // the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
+                        exec(PageRequest(req.location.move(req.direction)))
                     } else {
-                        throw PageNotFoundException(page)
+                        throw PageRequestException(he.status, he.message, req)
                     }
 
                 } else {
@@ -356,4 +356,4 @@ class PageProvider(private val listener: PageEventListener) {
     }
 }
 
-private data class PageJob(val location: Location? = null, val direction: Direction? = null, val refresh: Boolean = false)
+data class PageJob(val location: Location? = null, val direction: Direction? = null, val refresh: Boolean = false)

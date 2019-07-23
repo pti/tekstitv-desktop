@@ -21,35 +21,38 @@ class ShortcutsBar: JPanel() {
 
     fun update(event: PageEvent?) {
 
-        if (event is PageEvent.Loaded) {
-            val number = event.location.page
-            val tmp = Array(shortcutColors.size) { INVALID_PAGE }
-            var remaining = tmp.size
-
-            favorites.getFavorites(number)?.take(tmp.size)?.forEachIndexed { index, i ->
-                tmp[index] = i
-                if (i != INVALID_PAGE) remaining--
-            }
-
-            NavigationHistory.instance.topHits(number, remaining, ignore = tmp).forEach {
-                tmp.place(it)
-                remaining--
-            }
-
-            if (remaining > 0) {
-                event.subpage.uniqueLinks
-                        .filter { !tmp.contains(it) }
-                        .take(remaining)
-                        .forEach { tmp.place(it) }
-            }
-
-            shortcuts = tmp
-
-        } else {
-            shortcuts = emptyArray()
+        when (event) {
+            is PageEvent.Loaded -> shortcuts = createShortcuts(event.location.page, event.subpage)
+            is PageEvent.Loading -> shortcuts = createShortcuts(event.req.location.page, null)
+            is PageEvent.Failed -> shortcuts = emptyArray()
+            is PageEvent.Ignored -> return // Keep displaying the current shortcuts.
         }
 
         repaint()
+    }
+
+    private fun createShortcuts(page: Int, subpage: Subpage?): Array<Int> {
+        val tmp = Array(shortcutColors.size) { INVALID_PAGE }
+        var remaining = tmp.size
+
+        favorites.getFavorites(page)?.take(tmp.size)?.forEachIndexed { index, i ->
+            tmp[index] = i
+            if (i != INVALID_PAGE) remaining--
+        }
+
+        NavigationHistory.instance.topHits(page, remaining, ignore = tmp).forEach {
+            tmp.place(it)
+            remaining--
+        }
+
+        if (subpage != null && remaining > 0) {
+            subpage.uniqueLinks
+                    .filter { !tmp.contains(it) }
+                    .take(remaining)
+                    .forEach { tmp.place(it) }
+        }
+
+        return tmp
     }
 
     fun getShortcut(colorCharacter: Char): Int? {

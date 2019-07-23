@@ -86,5 +86,4 @@ fun JsonObject.add(name: String, value: Instant): JsonObject {
     return add(name, DateTimeFormatter.ISO_INSTANT.format(value))
 }
 
-class HttpException(val status: Int, message: String?): Exception(message)
-class PageNotFoundException(val page: Int): Exception()
+open class HttpException(val status: Int, message: String?): Exception(message)

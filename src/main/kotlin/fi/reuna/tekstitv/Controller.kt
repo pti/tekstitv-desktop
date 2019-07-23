@@ -13,6 +13,7 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
     private val digitBuffer = DigitBuffer()
     private val autoRefresher = Debouncer()
     private val autoRefreshInterval: Duration
+    private val eventDelayer = Debouncer()
 
     init {
         Log.debug("begin")
@@ -36,6 +37,7 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
         frame.removeKeyListener(this)
         frame.removeWindowListener(this)
         view.pagePanel.stop()
+        eventDelayer.destroy()
         autoRefresher.destroy()
         digitBuffer.close()
         NavigationHistory.instance.close()
@@ -64,22 +66,35 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
     }
 
     override fun onPageEvent(event: PageEvent) {
+        eventDelayer.stop()
         restartAutoRefresh()
-        
-        if (event is PageEvent.Failed && event.autoReload && view.pagePanel.latestEvent is PageEvent.Loaded) {
+        val prev = view.pagePanel.latestEvent
+
+        if (event is PageEvent.Failed && event.req.refresh && prev is PageEvent.Loaded) {
             // Failed to automatically refresh the page -> keep on displaying the currently loaded page
 
-        } else if (event !is PageEvent.Loaded || !event.noChange) {
+        } else if (event is PageEvent.Loading && event.req.refresh && prev is PageEvent.Loaded) {
+            // Keep on displaying the current page while reloading it.
+
+        } else if (event is PageEvent.Loading) {
+            // If the network connection is fast, then the loading message doesn't need to be shown at all.
+            eventDelayer.start(Configuration.instance.loadingMessageDelay) { handleEvent(event) }
+
+        } else if (event !is PageEvent.Loaded || !event.noChange || prev !is PageEvent.Loaded) {
             // noChange is used to avoid repainting and to inform that another auto-refresh round can be starter
             // (better to wait until the refresh request has ended instead of having a fixed repeating timer that
             // ignores communication delays and thus in worst cases posts another request while the previous was
             // still active).
-            view.pagePanel.latestEvent = event
-            view.shortcuts.update(event)
-
-            val location = (event as? PageEvent.Loaded)?.location ?: (event as? PageEvent.Failed)?.location
-            location?.let { digitBuffer.setCurrentPage(it.page) }
+            handleEvent(event)
         }
+    }
+
+    private fun handleEvent(event: PageEvent) {
+        view.pagePanel.latestEvent = event
+        view.shortcuts.update(event)
+
+        val location = (event as? PageEvent.Loaded)?.location ?: (event as? PageEvent.Failed)?.req?.location
+        location?.let { digitBuffer.setCurrentPage(it.page) }
     }
 
     override fun keyTyped(e: KeyEvent) {
