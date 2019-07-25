@@ -3,7 +3,6 @@ package fi.reuna.tekstitv
 import java.time.Duration
 import java.time.Instant
 import java.util.*
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
@@ -26,6 +25,7 @@ interface PageEventListener {
 
 class PageProvider(private val listener: PageEventListener) {
 
+    private val ttv = TTVService()
     private val lock = ReentrantLock()
     private val history = Stack<Location>()
     private val cache = mutableMapOf<Int, CacheEntry>()
@@ -180,10 +180,6 @@ class PageProvider(private val listener: PageEventListener) {
         return cacheEntry?.page?.getSubpage(sub)
     }
 
-    private fun Instant.since(): Duration {
-        return Duration.between(this, Instant.now())
-    }
-
     private fun Throwable.asPageEvent(req: PageRequest): PageEvent {
         var type = ErrorType.OTHER
 
@@ -205,21 +201,25 @@ class PageProvider(private val listener: PageEventListener) {
 
     private inner class PageJobConsumer {
 
-        private val ttv = TTVService()
-        private val jobs = ArrayBlockingQueue<PageJob>(10)
+        private val jobs = mutableListOf<PageJob>()
+        private val jobsLock = ReentrantLock()
+        private val notEmpty = jobsLock.newCondition()
+        private var currentJob: PageJob? = null
         private val running = AtomicBoolean(false)
         private val stopped = AtomicBoolean(false)
         private val reqId = AtomicInteger(1)
         private var ignoreId = AtomicInteger(0)
 
         fun stop() {
+            clearAndIgnoreActive()
             stopped.set(true)
-            jobs.add(PageJob()) // Wake up the consumer thread in case it is waiting for a job.
+            addJobToQueue(PageJob()) // Wake up the consumer thread in case it is waiting for a job.
         }
 
         fun clearAndIgnoreActive() {
+            if (stopped.get()) return
             ignoreId.set(reqId.get())
-            jobs.clear()
+            jobsLock.withLock { jobs.clear() }
         }
 
         fun add(job: PageJob) {
@@ -228,9 +228,12 @@ class PageProvider(private val listener: PageEventListener) {
                 return
             }
 
-            if (!running.get()) {
-                // Consumer thread is started here in case an exception is thrown
-                thread { consume() }
+            if (job.location != null && job.location == currentOrNextJob?.location) {
+                // Avoid doing the same absolute request back-to-back. This can happen e.g. when refreshing too
+                // frequently (and the request takes a while to complete). Cannot just check for job equality as having
+                // multiple consecutive (location=null, direction=next/prev) jobs is ok.
+                Log.debug("duplicate job - ignore: $job")
+                return
             }
 
             if (job.direction == null) {
@@ -239,27 +242,30 @@ class PageProvider(private val listener: PageEventListener) {
                 clearAndIgnoreActive()
             }
 
-            // Fail instead of blocking (the UI) if queue is full. 10 next/prev jobs should be enough for anybody.
-            // And the limitation doesn't actually mean anything - user can keep on pressing next/prev key and
-            // the jobs will eventually get handled.
-            jobs.add(job)
+            // Fail instead of blocking (the UI) if queue is full. And the limitation doesn't actually mean anything -
+            // user can keep on pressing next/prev key and the jobs will eventually get handled.
+            addJobToQueue(job)
+
+            if (!running.get()) {
+                running.set(true)
+                thread { consume() }
+            }
         }
 
         private fun consume() {
 
             try {
-                running.set(true)
 
                 while (!stopped.get()) {
-                    val job = jobs.take()
-
-                    if (job.location == null && job.direction == null) {
-                        break
-                    }
-
+                    val job = getJobForConsumption()
                     val req = PageRequest(job.location ?: currentLocation, job.direction, job.refresh)
 
                     try {
+
+                        if (job.location == null && job.direction == null) {
+                            break
+                        }
+
                         reqId.incrementAndGet()
 
                         if (req.direction != null) {
@@ -312,6 +318,9 @@ class PageProvider(private val listener: PageEventListener) {
 
                     } catch (t: Throwable) {
                         handleRequestFailure(req, t)
+
+                    } finally {
+                        jobConsumed()
                     }
                 }
 
@@ -353,7 +362,29 @@ class PageProvider(private val listener: PageEventListener) {
                 }
             }
         }
+
+        private fun addJobToQueue(job: PageJob) = jobsLock.withLock {
+            jobs.add(job)
+            notEmpty.signal()
+        }
+
+        private fun getJobForConsumption(): PageJob = jobsLock.withLock {
+            while (jobs.isEmpty()) notEmpty.await()
+            val job = jobs.removeAt(0)
+            currentJob = job
+            return job
+        }
+
+        private fun jobConsumed() = jobsLock.withLock {
+            currentJob = null
+        }
+
+        private val currentOrNextJob: PageJob? = jobsLock.withLock {
+            currentJob ?: jobs.firstOrNull()
+        }
     }
 }
 
-data class PageJob(val location: Location? = null, val direction: Direction? = null, val refresh: Boolean = false)
+private data class PageJob(val location: Location? = null, val direction: Direction? = null, val refresh: Boolean = false)
+
+fun Instant.since(): Duration = Duration.between(this, Instant.now())
