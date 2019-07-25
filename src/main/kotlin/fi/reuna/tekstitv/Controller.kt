@@ -26,14 +26,12 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
         provider.set(cfg.startPage)
         Log.debug("set initial page")
 
-        // TODO display some kind of loading indicator if request takes a long time
-
         frame.addKeyListener(this)
         frame.addWindowListener(this)
         view.pagePanel.pageLinkListener = this
     }
 
-    fun stop() {
+    private fun destroy() {
         frame.removeKeyListener(this)
         frame.removeWindowListener(this)
         view.pagePanel.stop()
@@ -41,7 +39,7 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
         autoRefresher.destroy()
         digitBuffer.close()
         NavigationHistory.instance.close()
-        provider.stop()
+        provider.destroy()
     }
 
     private fun setPage(number: Int) {
@@ -120,7 +118,7 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
                 KeyEvent.VK_R -> provider.refresh()
                 KeyEvent.VK_Q -> {
                     frame.saveWindowRectangle()
-                    stop()
+                    destroy()
                     frame.dispose()
                 }
                 else -> return

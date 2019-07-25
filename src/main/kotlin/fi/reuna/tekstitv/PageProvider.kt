@@ -36,7 +36,7 @@ class PageProvider(private val listener: PageEventListener) {
         get() = lock.withLock { history.lastOrNull() ?: Location(100, 0) }
 
 
-    fun stop() {
+    fun destroy() {
         refreshDelayer.stop()
         jobs.stop()
     }
