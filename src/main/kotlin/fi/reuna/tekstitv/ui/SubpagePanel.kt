@@ -115,9 +115,17 @@ class SubpagePanel : JPanel() {
         }
     }
 
-    private fun PageEvent.Failed.getErrorMessage(): String = when (type) {
-        ErrorType.NOT_FOUND -> "Page ${req.location.page} not found"
-        else -> "Error loading page ${req.location.page}"
+    private fun PageEvent.Failed.getErrorMessage(): String {
+
+        when (req.direction) {
+            Direction.NEXT -> return "Error loading next page"
+            Direction.PREV -> return "Error loading previous page"
+        }
+
+        return when (type) {
+            ErrorType.NOT_FOUND -> "Page ${req.location.page} not found"
+            else -> "Error loading page ${req.location.page}"
+        }
     }
 
     inner class MouseHandler: MouseAdapter() {
