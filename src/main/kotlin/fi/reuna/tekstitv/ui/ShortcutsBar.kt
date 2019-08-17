@@ -59,7 +59,8 @@ class ShortcutsBar: JPanel() {
         val index = shortcutChars.indexOf(colorCharacter)
 
         return if (index > -1 && index < shortcuts.size) {
-            shortcuts[index]
+            val page = shortcuts[index]
+            if (page == INVALID_PAGE) null else page
         } else {
             null
         }

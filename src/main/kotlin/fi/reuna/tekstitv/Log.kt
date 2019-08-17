@@ -10,8 +10,8 @@ private enum class LogTimeMode {
 
 class Log {
 
-    private val level = LogLevel.ERROR
-    private val mode = LogTimeMode.DELTA
+    private val level = LogLevel.DEBUG
+    private val mode = LogTimeMode.ABSOLUTE
     private val t0 = System.nanoTime()
     private val formatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
