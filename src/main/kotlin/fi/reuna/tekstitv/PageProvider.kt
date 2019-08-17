@@ -164,11 +164,26 @@ class PageProvider(private val listener: PageEventListener) {
         val cacheEntry = cache[page]
 
         if (cacheEntry != null) {
-            // Always return the cached version immediately and automatically refresh after delay if necessary.
-            // This way the app reacts to page selection (absolute or relative) immediately which is
-            // especially nice when browsing back in the history and the connection isn't that fast.
-            if (cacheEntry.added.since() >= Configuration.instance.cacheExpires) {
-                refreshDelayer.start(Configuration.instance.autoRefreshDelay) {
+            val cfg = Configuration.instance;
+            val entryAge = cacheEntry.added.since()
+
+            // Two levels of cache expiration are used:
+
+            // First one (cacheExpires) is used to avoid displaying 'really' old pages to the user.
+            // For example one could've left the app running in the background and then it is better to displaying
+            // a blank page while loading a requested page than to display a page that likely contains old information.
+            if (entryAge >= cfg.cacheExpires) {
+                Log.debug("cache entry too old - remove")
+                cache.remove(page)
+                return null
+            }
+
+            // The second (cacheRefreshAfter) is used to return the cached page if it is quite fresh,
+            // but old enough to qualify for refreshing. This way the app reacts to page selection (absolute or relative)
+            // immediately which is especially nice when browsing back in the history and the connection isn't that fast.
+            // autoRefreshDelay is used to avoid a page load request in case the user quickly moves to another page.
+            if (entryAge >= cfg.cacheRefreshAfter) {
+                refreshDelayer.start(cfg.autoRefreshDelay) {
                     if (currentLocation == this) {
                         Log.debug("delayed refresh of page ${this.page}")
                         refresh()
