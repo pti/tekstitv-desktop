@@ -97,6 +97,10 @@ class SubpagePanel : JPanel() {
 
         val g2d = g as Graphics2D
         g2d.applyDesktopHints()
+        // In some cases (specific font family, font size and prolly hinting/anti-aliasing setting combo) computing
+        // the character width (also SwingUtilities.computeStringWidth) results in a incorrect value.
+        // This results in text overflowing outside the intended page area.
+        // Not calling applyDesktopHints() can fix the width results but rendering quality is likely to be subpar.
 
         when (event) {
             is PageEvent.Loaded -> {
