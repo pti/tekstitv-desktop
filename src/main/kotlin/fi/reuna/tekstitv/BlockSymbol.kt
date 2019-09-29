@@ -11,6 +11,27 @@ private const val SEPARATED_MARGIN_Y = 0.06
 private val SYMBOL_COUNT = BLOCK_SYMBOL_RANGE.last - BLOCK_SYMBOL_RANGE.first + 1
 private val SEPARATED_OFFSET = GraphicsMode.SEPARATED.range.first - BLOCK_SYMBOL_RANGE.first
 
+private class CombinedBlock(val value: Int, col: Int, row: Int, width: Int, height: Int) {
+    val rect = Rectangle2D.Double(COL_X[col], COL_Y[row], COL_X[col + width] - COL_X[col], COL_Y[row + height] - COL_Y[row])
+}
+
+private val COMBINED_BLOCKS = listOf(
+        // "horizontal" combined blocks (2 blocks per row).
+        CombinedBlock(63, 0, 0, 2, 3),
+        CombinedBlock(15, 0, 0, 2, 2),
+        CombinedBlock(60, 0, 1, 2, 2),
+        CombinedBlock(3, 0, 0, 2, 1),
+        CombinedBlock(48, 0, 2, 2, 1),
+
+        // "vertical" combined blocks (1 block per row).
+        CombinedBlock(21, 0, 0, 1, 3),
+        CombinedBlock(42, 1, 0, 1, 3),
+        CombinedBlock(5, 0, 0, 1, 2),
+        CombinedBlock(10, 1, 0, 1, 2),
+        CombinedBlock(20, 0, 1, 1, 2),
+        CombinedBlock(40, 1, 1, 1, 2)
+)
+
 object BlockSymbol {
 
     private val symbols = Array(SYMBOL_COUNT) { i -> create(i) }
@@ -28,6 +49,17 @@ object BlockSymbol {
         val isSeparated = code >= SEPARATED_OFFSET
         val symbol = Area()
         var codeBits = code - if (isSeparated) SEPARATED_OFFSET else 0x0
+
+        if (!isSeparated) {
+            // Check if the symbol has rectangle shaped blocks with area >1. Those can be painted with a single rectangle.
+            for (combinedBlock in COMBINED_BLOCKS) {
+
+                if (codeBits and combinedBlock.value == combinedBlock.value) {
+                    symbol.add(Area(combinedBlock.rect))
+                    codeBits -= combinedBlock.value
+                }
+            }
+        }
 
         for (i in 0..5) {
 
