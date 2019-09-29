@@ -273,7 +273,9 @@ class PageProvider(private val listener: PageEventListener) {
 
                 while (!stopped.get()) {
                     val job = getJobForConsumption()
-                    val req = PageRequest(job.location ?: currentLocation, job.direction, job.refresh)
+                    val req = PageRequest(job.location ?: currentLocation.withSub(0), job.direction, job.refresh)
+                    // If location hasn't been specified, then default to first subpage. For example in next/prev page jobs
+                    // always move to the next/prev page's first sub page.
 
                     try {
 
@@ -301,7 +303,8 @@ class PageProvider(private val listener: PageEventListener) {
                             pages.forEach { cache[it.number] = CacheEntry(it) }
                         }
 
-                        val sub = pages.firstOrNull()?.getSubpage(req.location.sub)
+                        val page = pages.firstOrNull()
+                        val sub = page?.getSubpage(req.location.sub) ?: page?.subpages?.firstOrNull()
 
                         if (ignoreId.get() == reqId.get()) {
                             Log.debug("ignore response to req #${reqId.get()} page=${req.location.page} d=${req.direction}")
