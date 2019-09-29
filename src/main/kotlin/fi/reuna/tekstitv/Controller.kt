@@ -149,6 +149,9 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
 
     override fun windowDeiconified(e: WindowEvent?) {
         provider.refresh()
+        view.repaint()
+        // ^ in case contents changed while window was minimized, otherwise e.g. PageNumberView doesn't get painted
+        // if the digitBuffer updates itself.
     }
 
     override fun windowClosing(e: WindowEvent?) {
