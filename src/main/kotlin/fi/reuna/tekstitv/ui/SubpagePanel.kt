@@ -120,15 +120,16 @@ class SubpagePanel : JPanel() {
     }
 
     private fun PageEvent.Failed.getErrorMessage(): String {
+        val status = (error as? HttpException)?.status ?: -1
 
         when (req.direction) {
-            Direction.NEXT -> return "Error loading next page"
-            Direction.PREV -> return "Error loading previous page"
+            Direction.NEXT -> return "Error loading next page ($status)"
+            Direction.PREV -> return "Error loading previous page ($status)"
         }
 
         return when (type) {
             ErrorType.NOT_FOUND -> "Page ${req.location.page} not found"
-            else -> "Error loading page ${req.location.page}"
+            else -> "Error loading page ${req.location.page} ($status)"
         }
     }
 
