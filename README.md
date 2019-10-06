@@ -31,7 +31,7 @@ StartupWMClass=fi-reuna-tekstitv-MainKt
 
 ``` 
 {
-    baseUrl: http://beta.yle.fi/api/
+    baseUrl: https://beta.yle.fi/api/
     apiKey: <yourKeyHere>
     backgroundColor: 141414  # RRGGBB
     startPage: 100
