@@ -36,7 +36,8 @@ class Configuration(
         val linkFocusColor: Color,
         val mouseEnabled: Boolean,
         val navigationHistoryEnabled: Boolean,
-        val loadingMessageDelay: Duration
+        val loadingMessageDelay: Duration,
+        val applyDesktopHints: Boolean
 ) {
 
     companion object {
@@ -73,7 +74,8 @@ class Configuration(
                         p.getColorProperty("linkFocusColor", Color(0x30ffffff, true))!!,
                         p.getIntProperty("mouseEnabled", 1) == 1,
                         p.getIntProperty("navigationHistoryEnabled", 1) == 1,
-                        p.getDurationProperty("loadingMessageDelay", ChronoUnit.MILLIS, Duration.ofMillis(500))
+                        p.getDurationProperty("loadingMessageDelay", ChronoUnit.MILLIS, Duration.ofMillis(500)),
+                        p.getIntProperty("applyDesktopHints", 1) == 1
                 )
             }
         }
