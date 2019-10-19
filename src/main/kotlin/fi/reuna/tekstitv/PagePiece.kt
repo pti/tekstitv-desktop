@@ -326,7 +326,7 @@ private fun splitByTags(line: String): List<String> {
         offset = m.end()
     }
 
-    if (offset < line.length - 1) {
+    if (offset < line.length) {
         pieces.add(line.substring(offset))
     }
 

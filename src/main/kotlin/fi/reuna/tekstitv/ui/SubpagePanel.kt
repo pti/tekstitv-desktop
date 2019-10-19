@@ -1,10 +1,7 @@
 package fi.reuna.tekstitv.ui
 
 import fi.reuna.tekstitv.*
-import java.awt.Graphics
-import java.awt.Graphics2D
-import java.awt.Rectangle
-import java.awt.Toolkit
+import java.awt.*
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
