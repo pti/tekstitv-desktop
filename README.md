@@ -33,7 +33,7 @@ StartupWMClass=fi-reuna-tekstitv-MainKt
 {
     baseUrl: https://beta.yle.fi/api/
     apiKey: <yourKeyHere>
-    backgroundColor: 141414  # RRGGBB
+    backgroundColor: FF141414  # AARRGGBB
     startPage: 100
     autoRefreshInterval: 60  # Seconds
     fontFamily: Fira Mono
