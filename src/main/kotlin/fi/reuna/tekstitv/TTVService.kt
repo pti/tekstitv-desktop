@@ -18,7 +18,8 @@ class TTVService {
         baseUrl = "${cfg.baseUrl}${if (cfg.baseUrl.endsWith("/")) "" else "/"}ttvcontent/?a=${cfg.apiKey}&c=true"
 
         val pkg = javaClass.`package`
-        userAgent = "${pkg.implementationTitle}/${pkg.implementationVersion}"
+        val osInfo = "${System.getProperty("os.name")}; ${System.getProperty("os.arch")}; ${System.getProperty("os.version")}"
+        userAgent = "${pkg.implementationTitle}/${pkg.implementationVersion} ($osInfo)"
     }
 
     fun get(page : Int, rel: Direction? = null): TTVContent {
