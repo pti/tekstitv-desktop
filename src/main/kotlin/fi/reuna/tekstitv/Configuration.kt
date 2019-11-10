@@ -55,7 +55,7 @@ class Configuration(
                         p.getProperty("baseUrl"),
                         p.getProperty("apiKey"),
                         p.getIntProperty("startPage", 100)!!,
-                        p.getColorProperty("backgroundColor", Color.BLACK)!!,
+                        p.getColorProperty("backgroundColor", Color.BLACK, hasAlpha = false)!!,
                         p.getDurationProperty("autoRefreshInterval", ChronoUnit.SECONDS, Duration.ofSeconds(60)),
                         p.getDurationProperty("autoRefreshDelay", ChronoUnit.MILLIS, Duration.ofMillis(750)),
                         p.getDurationProperty("cacheRefreshAfter", ChronoUnit.SECONDS, Duration.ofSeconds(60)),
@@ -86,8 +86,8 @@ fun Properties.getIntProperty(name: String, defaultValue: Int? = null, radix: In
     return getProperty(name)?.toIntOrNull(radix) ?: defaultValue
 }
 
-private fun Properties.getColorProperty(name: String, defaultValue: Color? = null): Color? {
-    return getIntProperty(name, null, radix = 16)?.let { Color(it, true) } ?: defaultValue
+private fun Properties.getColorProperty(name: String, defaultValue: Color? = null, hasAlpha: Boolean = true): Color? {
+    return getIntProperty(name, null, radix = 16)?.let { Color(it, hasAlpha) } ?: defaultValue
 }
 
 private fun Properties.getDurationProperty(name: String, unit: TemporalUnit, defaultValue: Duration): Duration {
