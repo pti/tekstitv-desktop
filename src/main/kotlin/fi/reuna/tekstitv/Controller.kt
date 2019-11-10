@@ -3,6 +3,7 @@ package fi.reuna.tekstitv
 import fi.reuna.tekstitv.ui.MainView
 import fi.reuna.tekstitv.ui.PageLinkListener
 import fi.reuna.tekstitv.ui.saveWindowRectangle
+import java.awt.Toolkit
 import java.awt.event.*
 import java.time.Duration
 import javax.swing.JFrame
@@ -112,7 +113,7 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
 
     override fun keyPressed(e: KeyEvent) {
 
-        if (e.isControlDown) {
+        if (e.modifiersEx == Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx) {
 
             when (e.keyCode) {
                 KeyEvent.VK_R -> provider.refresh()
@@ -124,7 +125,7 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
                 else -> return
             }
 
-        } else {
+        } else if (e.modifiersEx == 0) {
 
             when (e.keyCode) {
                 KeyEvent.VK_LEFT -> provider.prevSubpage()
