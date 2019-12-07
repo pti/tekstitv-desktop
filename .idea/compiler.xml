@@ -8,6 +8,8 @@
       <module name="tekstitv-desktop_test" target="1.8" />
       <module name="tekstitv-jfx_main" target="1.8" />
       <module name="tekstitv-jfx_test" target="1.8" />
+      <module name="tekstitv.main" target="1.8" />
+      <module name="tekstitv.test" target="1.8" />
       <module name="tekstitv_main" target="1.8" />
       <module name="tekstitv_test" target="1.8" />
       <module name="yletext-desktop_test" target="1.8" />

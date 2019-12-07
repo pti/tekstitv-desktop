@@ -194,7 +194,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
 
     fun resetHeldGraphicsChar() { heldGraphicsChar = defaultSpaceChar; hold = false }
 
-    fun updateHeldGraphicsChar() { if (content.isNotEmpty()) heldGraphicsChar = content.last() }
+    fun updateHeldGraphicsChar() { if (content.isNotEmpty() && graphicsMode != null) heldGraphicsChar = content.last() }
 
     for (str in strings) {
         val m = capturingTagPattern.matcher(str)
