@@ -113,7 +113,7 @@ class Controller(private val view: MainView, private val frame: JFrame): KeyList
 
     override fun keyPressed(e: KeyEvent) {
 
-        if (e.modifiersEx == Toolkit.getDefaultToolkit().menuShortcutKeyMaskEx) {
+        if (e.modifiersEx == Toolkit.getDefaultToolkit().menuShortcutKeyMask) {
 
             when (e.keyCode) {
                 KeyEvent.VK_R -> provider.refresh()
