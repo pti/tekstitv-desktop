@@ -358,15 +358,7 @@ class PageProvider(private val listener: PageEventListener) {
             notify(t.asPageEvent(req))
         }
 
-        var last: Int? = null
-
         private fun exec(req: PageRequest): TeletextPage {
-
-            if (last != req.location.page && (System.currentTimeMillis() % 2) == 0L) {
-                throw PageRequestException(401, "Too many requests", req)
-            }
-
-            last = req.location.page
 
             return try {
                 notify(PageEvent.Loading(req))
