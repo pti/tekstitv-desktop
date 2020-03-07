@@ -2,18 +2,31 @@ package fi.reuna.tekstitv
 
 import java.awt.Color
 import java.awt.Rectangle
-import java.time.Instant
 
-data class Location(val page: Int, val sub: Int) {
+data class Location(val page: Int, val sub: Int = 0) {
 
     fun move(direction: Direction): Location {
-        return Location(page + direction.delta, 0)
+        return Location(page.move(direction), 0)
     }
 
     fun withSub(sub: Int): Location {
         return Location(page, sub)
     }
 }
+
+private fun Int.move(direction: Direction): Int {
+    var moved = this + direction.delta;
+
+    if (moved < MIN_PAGE) {
+        moved = MAX_PAGE
+    } else if (moved > MAX_PAGE) {
+        moved = MIN_PAGE
+    }
+
+    return moved
+}
+
+fun Int.asLocation(): Location = Location(this)
 
 enum class ErrorType {
     NOT_FOUND,
@@ -38,26 +51,38 @@ data class PageRequest(val location: Location, val direction: Direction? = null,
 
 class PageRequestException(status: Int, message: String?, val request: PageRequest): HttpException(status, message)
 
-data class Page(val number: Int, val subpages: List<Subpage>) {
-
+data class Page(val number: Int,
+                val nextPage: Int,
+                val prevPage: Int,
+                val subpages: List<Subpage>)
+{
     // Subpage numbers in the server response start from 1.
     // Subpage numbers aren't necessarily continuous / start from 1 => use indexes as subpage numbers instead.
-    constructor(src: TTVPage) : this(src.number, src.subpages.mapIndexed { index, sub -> Subpage(Location(src.number, index), sub.content, sub.timestamp) })
+    constructor(src: TeletextPage) : this(
+            src.number,
+            src.nextPage ?: src.number.move(Direction.NEXT),
+            src.prevPage ?: src.number.move(Direction.PREV),
+            src.subpages.mapIndexed { index, sub -> Subpage(Location(src.number, index), sub.lines) }
+    )
 
     fun getSubpage(index: Int): Subpage? {
         return if (index >= 0 && index < subpages.size) subpages[index] else null
     }
+
+    fun relativePageNumber(direction: Direction): Int = if (direction == Direction.NEXT) nextPage else prevPage
 }
 
 const val CHARS_IN_LINK = 3
+const val MAX_CHARS_PER_LINE = 40
+const val MAX_LINES_PER_PAGE = 23
 const val INVALID_PAGE = 0
 const val MIN_PAGE = 100
 const val MAX_PAGE = 899
 val PAGE_RANGE = MIN_PAGE..MAX_PAGE
 
-data class Subpage(val location: Location, val content: String, val timestamp: Instant?) {
+data class Subpage(val location: Location, val lines: List<String>) {
 
-    val pieces: Array<PagePiece> = pageContentToPieces(content).toTypedArray()
+    val pieces: Array<PagePiece> = pageContentToPieces(lines).toTypedArray()
     val uniqueLinks: IntArray
     val allLinks: Array<PageLink>
 
@@ -86,7 +111,7 @@ data class Subpage(val location: Location, val content: String, val timestamp: I
     val emptyFirstColumn = pieces
             .filter { it.lineStart && it.content.isNotEmpty() }
             .map { it.background ?: Color.BLACK == Color.BLACK && it.content.first().isEmptySymbol(it.mode) }
-            .reduce { a, b -> a && b }
+            .fold(true) { a, b -> a && b }
 }
 
 private fun Char.isEmptySymbol(mode: GraphicsMode?): Boolean {

@@ -1,7 +1,10 @@
 package fi.reuna.tekstitv.ui
 
 import fi.reuna.tekstitv.*
-import java.awt.*
+import java.awt.Graphics
+import java.awt.Graphics2D
+import java.awt.Rectangle
+import java.awt.Toolkit
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JPanel
@@ -121,11 +124,6 @@ class SubpagePanel : JPanel() {
 
     private fun PageEvent.Failed.getErrorMessage(): String {
         val status = (error as? HttpException)?.status ?: -1
-
-        when (req.direction) {
-            Direction.NEXT -> return "Error loading next page ($status)"
-            Direction.PREV -> return "Error loading previous page ($status)"
-        }
 
         return when (type) {
             ErrorType.NOT_FOUND -> "Page ${req.location.page} not found"

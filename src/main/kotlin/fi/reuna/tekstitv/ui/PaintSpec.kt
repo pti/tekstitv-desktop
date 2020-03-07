@@ -1,6 +1,8 @@
 package fi.reuna.tekstitv.ui
 
 import fi.reuna.tekstitv.Configuration
+import fi.reuna.tekstitv.MAX_CHARS_PER_LINE
+import fi.reuna.tekstitv.MAX_LINES_PER_PAGE
 import java.awt.Color
 import java.awt.Font
 import java.awt.FontMetrics
@@ -30,9 +32,6 @@ class PaintSpec(g: Graphics, val width: Int, val height: Int) {
         contentHeight = MAX_LINES_PER_PAGE * lineHeight
     }
 }
-
-private const val MAX_CHARS_PER_LINE = 40
-private const val MAX_LINES_PER_PAGE = 23
 
 private fun fontForSize(g: Graphics, fontFamily: String, width: Int, height: Int): Font
 {

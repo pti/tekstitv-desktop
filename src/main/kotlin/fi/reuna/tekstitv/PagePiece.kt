@@ -113,14 +113,13 @@ class PagePiece(var foreground: Color,
  *
  * Double height mode isn't supported.
  */
-fun pageContentToPieces(content: String): List<PagePiece> {
+fun pageContentToPieces(lines: List<String>): List<PagePiece> {
     // Sometimes double height rows are followed by lines with some content that isn't visible in the web version.
     // Perhaps there is some other way of not displaying that content, but for now just ignore the following row
     // (at least currently this results in correct looking pages). These lines can even contain dhei tags.
     val ignoreLineAfterDoubleHeightOne = true
 
     val ret = ArrayList<PagePiece>()
-    val lines = content.split("\n").dropLastWhile { it.isEmpty() } // Drop the last empty string produced by split().
     var lastRowWasDoubleHeight = false
 
     for (line in lines) {
@@ -137,14 +136,19 @@ fun pageContentToPieces(content: String): List<PagePiece> {
     return ret
 }
 
-private val tagPattern = Pattern.compile("""\[[a-z]{3,4}]""")
-private val capturingTagPattern = Pattern.compile("""^\[(([a-z])([a-z]{2,3}))]$""")
+private val tagPattern = Pattern.compile("""\{[A-Z]{1,3}[a-z]*}""")
+private val capturingTagPattern = Pattern.compile("""^\{([A-Z]{1,3}[a-z]*)}$""")
 
 private fun lineToPieces(line: String): List<PagePiece> {
+    val defaultFg: Color = Color.WHITE
+
+    if (line.trim().isEmpty()) {
+        return listOf(PagePiece(defaultFg, background = null, content = "", lineStart = true, lineEnd = true, mode = null))
+    }
+
     val strings = splitByTags(line)
     val pieces = ArrayList<PagePiece>(strings.size)
 
-    val defaultFg: Color = Color.WHITE
     var bg: Color? = null
     var fg: Color = defaultFg
     var graphicsMode: GraphicsMode? = null
@@ -223,50 +227,50 @@ private fun lineToPieces(line: String): List<PagePiece> {
              * The attributes are defined in Enhanced Teletext Specification (ETSI EN 300 706 v1.2.1).
              */
             val attr = m.group(1)
-            val first = m.group(2)[0]
 
-            if (attr == "tbox") {
+            if (attr == "SB") {
+                // Start box
                 // Not sure what this exactly is, but it seems to be used to produce a solid box:
                 // symbol 0x3F in graphics mode and a bit smaller filled box in text mode.
                 // Perhaps a separate tag is needed because the symbol would correspond with the DEL character (0x7F) (see String.toGraphicsChars)?
                 content.append(graphicsMode?.range?.endInclusive?.toChar() ?: '■')
                 updateHeldGraphicsChar()
 
-            } else if (attr == "nbgr") {
+            } else if (attr == "NB") {
                 // 0x1D New Background. Immediate change.
                 pieceBreak()
                 appendSpace()
                 bg = fg
 
-            } else if (attr == "bbgr") {
+            } else if (attr == "BB") {
                 // 0x1C Black Background. Immediate change.
                 pieceBreak()
                 appendSpace()
                 bg = null
 
-            } else if (attr == "sgra") {
+            } else if (attr == "SG") {
                 // 0x1A Separated Mosaic Graphics.
                 pieceBreak()
                 graphicsMode = GraphicsMode.SEPARATED
                 appendSpace()
 
-            } else if (attr == "cgra") {
+            } else if (attr == "CG") {
                 // 0x19 Contiguous Mosaic Graphics
                 pieceBreak()
                 graphicsMode = GraphicsMode.CONTIGUOUS
                 appendSpace()
 
-            } else if (attr == "hgra") {
+            } else if (attr == "Hold") {
                 // 0x1E Hold Mosaic. Instead of presenting a control with a space character use the last graphics symbol.
                 hold = true
                 appendSpace()
 
-            } else if (attr == "rgra") {
+            } else if (attr == "Release") {
                 // 0x1F Release Mosaic.
                 appendSpace()
                 resetHeldGraphicsChar()
 
-            } else if (attr == "dhei") {
+            } else if (attr == "DH") {
                 // 0x0D Double Height spec talks about stretching the chars and mosaics following the code, but
                 // looking at the webpage version the whole line seems to get stretched - which makes more sense.
                 // This interpretation also 'enables' ignoring the normal size attribute (nhei).
@@ -274,24 +278,39 @@ private fun lineToPieces(line: String): List<PagePiece> {
                 appendSpace()
                 pieceBreak()
 
-            } else if (first == 'g') {
-                // 0x11-0x17 Mosaic Colour Codes
+            } else if (attr == "NH") {
+                // Normal height
+                doubleHeight = false
                 appendSpace()
                 pieceBreak()
-                if (graphicsMode == null) graphicsMode = GraphicsMode.CONTIGUOUS
-                fg = colorForId(m.group(3)) ?: defaultFg
-
-            } else if (first == 't') {
-                // 0x01-0x07 Alpha Colour Codes
-                appendSpace()
-                pieceBreak()
-                graphicsMode = null
-                resetHeldGraphicsChar()
-                fg = colorForId(m.group(3)) ?: defaultFg
 
             } else {
-                appendSpace()
-                pieceBreak()
+                val graphicsColor = attr.asGraphicsColor()
+
+                if (graphicsColor != null) {
+                    // 0x11-0x17 Mosaic Colour Codes
+                    appendSpace()
+                    pieceBreak()
+                    if (graphicsMode == null) graphicsMode = GraphicsMode.CONTIGUOUS
+                    fg = graphicsColor
+
+                } else {
+                    val textColor = attr.asColor()
+
+                    if (textColor != null) {
+                        // 0x01-0x07 Alpha Colour Codes
+                        appendSpace()
+                        pieceBreak()
+                        graphicsMode = null
+                        resetHeldGraphicsChar()
+                        fg = textColor
+
+                    } else {
+                        // DW=Double width/DS=Double size/Conceal/ESC=Escape/Flash=Flash on/Steady=Flash off/EB=End box aren't supported.
+                        appendSpace()
+                        pieceBreak()
+                    }
+                }
             }
 
         } else {
@@ -303,7 +322,19 @@ private fun lineToPieces(line: String): List<PagePiece> {
 
     pieceBreak() // In case line ended with spacing attribute tags.
     pieces.firstOrNull()?.apply { lineStart = true }
-    pieces.lastOrNull()?.apply { lineEnd = true }
+    pieces.lastOrNull()?.apply {
+        lineEnd = true
+
+        // Lines in a teletext page are always the same width, but in the server
+        // response the lines are trimmed. Without padding to full width the background
+        // wouldn't be drawn correctly (bg fill would end after the last non-empty character).
+        val totalContentLen = pieces.map { it.content.length }.sum()
+
+        if (totalContentLen < MAX_CHARS_PER_LINE && bg != null) {
+            val len = this.content.length + MAX_CHARS_PER_LINE - totalContentLen
+            this.content = this.content.padEnd(len, ' ')
+        }
+    }
     pieces.forEach { it.doubleHeight = doubleHeight }
     return pieces
 }
@@ -333,15 +364,19 @@ private fun splitByTags(line: String): List<String> {
     return pieces
 }
 
-private fun colorForId(colorId: String): Color? {
-    return when (colorId) {
-        "blu" -> Color.BLUE
-        "whi" -> Color.WHITE
-        "cya" -> Color.CYAN
-        "gre" -> Color(0.0f, 0.8f, 0.0f)
-        "yel" -> Color.YELLOW
-        "red" -> Color.RED
-        "mag" -> Color.MAGENTA
+private fun String.asGraphicsColor(): Color? {
+    return takeIf { it.startsWith('G') && it.length > 1 }?.substring(1)?.asColor()
+}
+
+private fun String.asColor(): Color? {
+    return when (this) {
+        "Blue" -> Color.BLUE
+        "White" -> Color.WHITE
+        "Cyan" -> Color.CYAN
+        "Green" -> Color(0.0f, 0.8f, 0.0f)
+        "Yellow" -> Color.YELLOW
+        "Red" -> Color.RED
+        "Magenta" -> Color.MAGENTA
         else -> null
     }
 }

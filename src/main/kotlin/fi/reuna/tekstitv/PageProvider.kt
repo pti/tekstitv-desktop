@@ -35,6 +35,9 @@ class PageProvider(private val listener: PageEventListener) {
     val currentLocation: Location
         get() = lock.withLock { history.lastOrNull() ?: Location(100, 0) }
 
+    val currentPage: Page?
+        get() = lock.withLock { history.lastOrNull()?.let { cache[it.page]?.page } }
+
 
     fun destroy() {
         refreshDelayer.stop()
@@ -47,14 +50,14 @@ class PageProvider(private val listener: PageEventListener) {
 
     fun set(location: Location, checkCache: Boolean = true, refresh: Boolean = false) {
         refreshDelayer.stop()
-        val cached = if (checkCache) location.checkCache() else null
+        val cached = if (checkCache) location.checkCache()?.getSubpage(location.sub) else null
 
         if (cached != null) {
             jobs.clearAndIgnoreActive()
             handleCacheHit(cached)
 
         } else {
-            jobs.add(PageJob(location, refresh = refresh))
+            jobs.add(PageJob.Absolute(location, refresh))
         }
     }
 
@@ -89,12 +92,12 @@ class PageProvider(private val listener: PageEventListener) {
         // request might get triggered. To avoid that and to allow the user to move multiple pages by pressing
         // next/prev rapidly, a queue is needed for the next/prev requests. Consume a request at a time.
         refreshDelayer.stop()
-        jobs.add(PageJob(direction = Direction.NEXT))
+        jobs.add(PageJob.Relative(Direction.NEXT))
     }
 
     fun prevPage() {
         refreshDelayer.stop()
-        jobs.add(PageJob(direction = Direction.PREV))
+        jobs.add(PageJob.Relative(Direction.PREV))
     }
 
     fun nextSubpage() {
@@ -103,14 +106,6 @@ class PageProvider(private val listener: PageEventListener) {
 
     fun prevSubpage() {
         setSubpage(direction = Direction.PREV)
-    }
-
-    /**
-     * Update the history so that for the current page the subpage number is the specified one.
-     * Enables jumping to the 'correct' subpage (instead of always the first one) when navigating back in the history.
-     */
-    fun notifySubpageChanged(newSubpage: Int) {
-        setSubpage(number = newSubpage, notify = false)
     }
 
     private fun setSubpage(number: Int? = null, direction: Direction? = null, notify: Boolean = true) {
@@ -131,7 +126,8 @@ class PageProvider(private val listener: PageEventListener) {
                     if (newSubpage < 0) newSubpage = numSubs - 1
                 }
 
-                // Instead of adding another instance of the current page to the history stack, replace page's current instance with updated subpage. Quicker to move backwards in history this way.
+                // Instead of adding another instance of the current page to the history stack,
+                // replace page's current instance with updated subpage. Quicker to move backwards in history this way.
                 currentLocation.withSub(newSubpage).fromCache()?.let {
                     history.pop()
                     history.push(it.location)
@@ -160,11 +156,11 @@ class PageProvider(private val listener: PageEventListener) {
         return cache[page]?.page?.getSubpage(sub)
     }
 
-    private fun Location.checkCache(): Subpage? = lock.withLock {
+    private fun Location.checkCache(): Page? = lock.withLock {
         val cacheEntry = cache[page]
 
         if (cacheEntry != null) {
-            val cfg = Configuration.instance;
+            val cfg = Configuration.instance
             val entryAge = cacheEntry.added.since()
 
             // Two levels of cache expiration are used:
@@ -192,7 +188,7 @@ class PageProvider(private val listener: PageEventListener) {
             }
         }
 
-        return cacheEntry?.page?.getSubpage(sub)
+        return cacheEntry?.page
     }
 
     private fun Throwable.asPageEvent(req: PageRequest): PageEvent {
@@ -228,7 +224,7 @@ class PageProvider(private val listener: PageEventListener) {
         fun stop() {
             clearAndIgnoreActive()
             stopped.set(true)
-            addJobToQueue(PageJob()) // Wake up the consumer thread in case it is waiting for a job.
+            jobsLock.withLock { notEmpty.signal() }
         }
 
         fun clearAndIgnoreActive() {
@@ -243,7 +239,9 @@ class PageProvider(private val listener: PageEventListener) {
                 return
             }
 
-            if (job.location != null && job.location == currentOrNextJob?.location) {
+            val prevJob = currentOrNextJob
+
+            if (job is PageJob.Absolute && prevJob is PageJob.Absolute && job.location == prevJob.location) {
                 // Avoid doing the same absolute request back-to-back. This can happen e.g. when refreshing too
                 // frequently (and the request takes a while to complete). Cannot just check for job equality as having
                 // multiple consecutive (location=null, direction=next/prev) jobs is ok.
@@ -251,7 +249,7 @@ class PageProvider(private val listener: PageEventListener) {
                 return
             }
 
-            if (job.direction == null) {
+            if (job is PageJob.Absolute) {
                 // Other requests (most likely relative ones) aren't relevant after setting an absolute position,
                 // so empty the queue.
                 clearAndIgnoreActive()
@@ -272,22 +270,27 @@ class PageProvider(private val listener: PageEventListener) {
             try {
 
                 while (!stopped.get()) {
-                    val job = getJobForConsumption()
-                    val req = PageRequest(job.location ?: currentLocation.withSub(0), job.direction, job.refresh)
-                    // If location hasn't been specified, then default to first subpage. For example in next/prev page jobs
-                    // always move to the next/prev page's first sub page.
+                    val job = getJobForConsumption() ?: break
+
+                    val location = when (job) {
+                        is PageJob.Absolute -> job.location
+                        is PageJob.Relative -> currentPage?.relativePageNumber(job.direction)?.asLocation()
+                                ?: currentLocation.move(job.direction)
+                    }
+
+                    val req = when (job) {
+                        is PageJob.Absolute -> PageRequest(location, refresh = job.refresh)
+                        is PageJob.Relative -> PageRequest(location)
+                    }
 
                     try {
-
-                        if (job.location == null && job.direction == null) {
-                            break
-                        }
-
                         reqId.incrementAndGet()
 
                         if (req.direction != null) {
-                            // TODO some kind of linked list to cache so that we can check for other than just the immediate page
-                            val hit = req.location.move(req.direction).checkCache()
+                            // In the next/prev page case cache isn't checked immediately in next/prevPage, but later
+                            // here when processing the job queue so that requests gets processed in order.
+                            // At this point req's location already takes the direction into account.
+                            val hit = req.location.checkCache()?.getSubpage(0)
 
                             if (hit != null) {
                                 handleCacheHit(hit)
@@ -295,16 +298,16 @@ class PageProvider(private val listener: PageEventListener) {
                             }
                         }
 
-                        val body = exec(req)
-                        val pages = body.pages.map { Page(it) }
-                        val old = cache[req.location.page]?.page
+                        val resp = exec(req)
+                        val page = Page(resp)
+                        Log.debug("got: number=${page.number}, next=${page.nextPage}, prev=${page.prevPage}")
+                        val old = cache[page.number]?.page
 
                         lock.withLock {
-                            pages.forEach { cache[it.number] = CacheEntry(it) }
+                            cache[page.number] = CacheEntry(page)
                         }
 
-                        val page = pages.firstOrNull()
-                        val sub = page?.getSubpage(req.location.sub) ?: page?.subpages?.firstOrNull()
+                        val sub = page.getSubpage(req.location.sub) ?: page.subpages.firstOrNull()
 
                         if (ignoreId.get() == reqId.get()) {
                             Log.debug("ignore response to req #${reqId.get()} page=${req.location.page} d=${req.direction}")
@@ -320,7 +323,7 @@ class PageProvider(private val listener: PageEventListener) {
                                 historyAdd(sub.location)
                             }
 
-                            val noChange = req.refresh && old != null && sub?.timestamp != null && sub.timestamp == old.getSubpage(req.location.sub)?.timestamp
+                            val noChange = req.refresh && old != null && old.subpages == page.subpages
 
                             val event = when (sub) {
                                 null -> PageEvent.Failed(ErrorType.NOT_FOUND, null, req)
@@ -331,7 +334,6 @@ class PageProvider(private val listener: PageEventListener) {
                         }
 
                     } catch (pre: PageRequestException) {
-                        // Request in the exception instance might have changed from 'req' (if relative req failed).
                         handleRequestFailure(pre.request, pre)
 
                     } catch (t: Throwable) {
@@ -356,24 +358,24 @@ class PageProvider(private val listener: PageEventListener) {
             notify(t.asPageEvent(req))
         }
 
-        private fun exec(req: PageRequest): TTVContent {
+        var last: Int? = null
+
+        private fun exec(req: PageRequest): TeletextPage {
+
+            if (last != req.location.page && (System.currentTimeMillis() % 2) == 0L) {
+                throw PageRequestException(401, "Too many requests", req)
+            }
+
+            last = req.location.page
 
             return try {
                 notify(PageEvent.Loading(req))
-                ttv.get(req.location.page, req.direction)
+                ttv.get(req.location.page)
 
             } catch (he: HttpException) {
 
                 if (he.status == 404) {
-
-                    if (req.direction != null) {
-                        // If the relativeTo points to a non-existing page, then nextPage/prevPage requests always fail.
-                        // If that happens, simply try to request the current page +- 1. This is useful in case
-                        // the user has entered an invalid page and then attempts to move to nextPage/prevPage page.
-                        exec(PageRequest(req.location.move(req.direction)))
-                    } else {
-                        throw PageRequestException(he.status, he.message, req)
-                    }
+                    throw PageRequestException(he.status, he.message, req)
 
                 } else {
                     throw he
@@ -386,11 +388,17 @@ class PageProvider(private val listener: PageEventListener) {
             notEmpty.signal()
         }
 
-        private fun getJobForConsumption(): PageJob = jobsLock.withLock {
-            while (jobs.isEmpty()) notEmpty.await()
-            val job = jobs.removeAt(0)
-            currentJob = job
-            return job
+        private fun getJobForConsumption(): PageJob? = jobsLock.withLock {
+            while (jobs.isEmpty() && !stopped.get()) notEmpty.await()
+
+            return if (jobs.isEmpty()) {
+                null
+
+            } else {
+                val job = jobs.removeAt(0)
+                currentJob = job
+                job
+            }
         }
 
         private fun jobConsumed() = jobsLock.withLock {
@@ -403,6 +411,9 @@ class PageProvider(private val listener: PageEventListener) {
     }
 }
 
-private data class PageJob(val location: Location? = null, val direction: Direction? = null, val refresh: Boolean = false)
-
 fun Instant.since(): Duration = Duration.between(this, Instant.now())
+
+private sealed class PageJob {
+    data class Absolute(val location: Location, val refresh: Boolean) : PageJob()
+    data class Relative(val direction: Direction) : PageJob()
+}

@@ -15,7 +15,8 @@ fun propertiesPath(name: String): Path {
 
 class Configuration(
         val baseUrl: String,
-        val apiKey: String,
+        val appId: String,
+        val appKey: String,
         val startPage: Int,
         val backgroundColor: Color,
         val autoRefreshInterval: Duration,
@@ -53,7 +54,8 @@ class Configuration(
 
                 Configuration(
                         p.getProperty("baseUrl"),
-                        p.getProperty("apiKey"),
+                        p.getProperty("appId"),
+                        p.getProperty("appKey"),
                         p.getIntProperty("startPage", 100)!!,
                         p.getColorProperty("backgroundColor", Color.BLACK, hasAlpha = false)!!,
                         p.getDurationProperty("autoRefreshInterval", ChronoUnit.SECONDS, Duration.ofSeconds(60)),
