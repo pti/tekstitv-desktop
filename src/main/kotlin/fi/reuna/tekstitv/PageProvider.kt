@@ -25,7 +25,7 @@ interface PageEventListener {
 
 class PageProvider(private val listener: PageEventListener) {
 
-    private val ttv = TTVService()
+    private val ttv = TeletextService()
     private val lock = ReentrantLock()
     private val history = Stack<Location>()
     private val cache = mutableMapOf<Int, CacheEntry>()

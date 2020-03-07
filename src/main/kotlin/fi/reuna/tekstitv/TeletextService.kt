@@ -9,7 +9,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class TTVService {
+class TeletextService {
 
     private val baseUrl: String
     private val userAgent: String
