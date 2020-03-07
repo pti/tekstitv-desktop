@@ -40,7 +40,7 @@ class PageProvider(private val listener: PageEventListener) {
 
 
     fun destroy() {
-        refreshDelayer.stop()
+        refreshDelayer.destroy()
         jobs.stop()
     }
 
