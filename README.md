@@ -2,12 +2,12 @@
 - Build using _installShadowDist_ Gradle task. This will generate a fat jar containing all the required libraries.
   The app can then be started with: 
 ```
-$ java -jar tekstitv-0.1.0-all.jar
+$ java -jar tekstitv-0.3.0-all.jar
 ```
 
 - Log level is defined by `Log.level` (in file `Log.kt`).
 
-- Tested with Oracle JRE 1.8.0_181.
+- Tested with AdoptOpenJDK 1.8.0_222-b10.
 
 - Example Gnome desktop shortcut file:
 
@@ -20,7 +20,7 @@ Type=Application
 Name=Teksti-TV
 Path=/install-path/tekstitv-shadow
 Icon=/icon-path/tekstitv.svg
-Exec=/java-home/bin/java -jar lib/tekstitv-0.1.0-all.jar
+Exec=/java-home/bin/java -jar lib/tekstitv-0.3.0-all.jar
 StartupWMClass=fi-reuna-tekstitv-MainKt
 ```
 
@@ -31,8 +31,9 @@ StartupWMClass=fi-reuna-tekstitv-MainKt
 
 ``` 
 {
-    baseUrl: https://beta.yle.fi/api/
-    apiKey: <yourKeyHere>
+    baseUrl = https://external.api.yle.fi
+    appId = <yourIdHere>
+    appKey = <yourKeyHere>
     backgroundColor: 141414  # RRGGBB
     startPage: 100
     autoRefreshInterval: 60  # Seconds
