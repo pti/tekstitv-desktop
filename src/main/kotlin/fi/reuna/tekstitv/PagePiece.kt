@@ -228,15 +228,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
              */
             val attr = m.group(1)
 
-            if (attr == "SB") {
-                // Start box
-                // Not sure what this exactly is, but it seems to be used to produce a solid box:
-                // symbol 0x3F in graphics mode and a bit smaller filled box in text mode.
-                // Perhaps a separate tag is needed because the symbol would correspond with the DEL character (0x7F) (see String.toGraphicsChars)?
-                content.append(graphicsMode?.range?.endInclusive?.toChar() ?: '■')
-                updateHeldGraphicsChar()
-
-            } else if (attr == "NB") {
+            if (attr == "NB") {
                 // 0x1D New Background. Immediate change.
                 pieceBreak()
                 appendSpace()
@@ -306,7 +298,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
                         fg = textColor
 
                     } else {
-                        // DW=Double width/DS=Double size/Conceal/ESC=Escape/Flash=Flash on/Steady=Flash off/EB=End box aren't supported.
+                        // DW=Double width/DS=Double size/Conceal/ESC=Escape/Flash=Flash on/Steady=Flash off/SB=Start box/EB=End box aren't supported.
                         appendSpace()
                         pieceBreak()
                     }
