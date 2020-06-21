@@ -277,7 +277,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
                 pieceBreak()
 
             } else {
-                val graphicsColor = attr.asGraphicsColor()
+                val graphicsColor = attr?.asGraphicsColor()
 
                 if (graphicsColor != null) {
                     // 0x11-0x17 Mosaic Colour Codes
@@ -287,7 +287,7 @@ private fun lineToPieces(line: String): List<PagePiece> {
                     fg = graphicsColor
 
                 } else {
-                    val textColor = attr.asColor()
+                    val textColor = attr?.asColor()
 
                     if (textColor != null) {
                         // 0x01-0x07 Alpha Colour Codes

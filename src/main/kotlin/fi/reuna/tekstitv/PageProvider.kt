@@ -280,7 +280,7 @@ class PageProvider(private val listener: PageEventListener) {
 
                     val req = when (job) {
                         is PageJob.Absolute -> PageRequest(location, refresh = job.refresh)
-                        is PageJob.Relative -> PageRequest(location)
+                        is PageJob.Relative -> PageRequest(location, direction = job.direction)
                     }
 
                     try {
